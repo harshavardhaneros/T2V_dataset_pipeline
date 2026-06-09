@@ -1,0 +1,56 @@
+# Architecture model map (see terminal GPU banners per service)
+
+classifier: Qwen3-VL-32B
+verifier: Gemma-27B
+captioner: Gemma-3-4B-IT
+face: YOLOv12n-face + InsightFace-buffalo_l
+scoring: CLIP + GroundingDINO + spaCy
+
+qwen:
+  use_placeholder: false
+
+master_caption:
+  enabled: true
+  use_placeholder: false
+
+gemma:
+  model_name: Gemma-27B
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-27b-it
+  gpu_ids: [5, 6]
+  max_new_tokens: 256
+  use_placeholder: false
+
+gemma_caption:
+  model_name: Gemma-3-4B-IT
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+  gpu_ids: [0]
+  batch_size: 8
+  max_tokens: 1000
+  use_placeholder: false
+
+clip_model:
+  name: ViT-B-32
+  pretrained: openai
+  use_placeholder: true
+
+lama:
+  use_placeholder: true
+
+unimatch:
+  repo_path: /mnt/data0/harsha/new_dataset_pipeline/models/unimatch
+  checkpoint: /mnt/data0/harsha/new_dataset_pipeline/models/unimatch/gmflow-scale2-regrefine6-mixdata.pth
+  sample_interval_sec: 0.5
+  resize_width: 576
+  resize_height: 320
+  fallback_scale: 8.0
+
+vmaf:
+  sample_interval_sec: 0.5
+  binary: vmaf
+
+dover:
+  use_placeholder: true
+  repo_path: /mnt/data0/harsha/new_dataset_pipeline/models/DOVER
+  checkpoint: /mnt/data0/harsha/new_dataset_pipeline/models/DOVER/pretrained_weights/DOVER.pth
+  config_path: /mnt/data0/harsha/new_dataset_pipeline/models/DOVER/dover.yml
+  device: cuda

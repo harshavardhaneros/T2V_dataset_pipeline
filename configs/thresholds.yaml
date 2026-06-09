@@ -1,0 +1,46 @@
+scene_detection:
+  threshold: 27
+  min_scene_len: 15
+
+virtual_clips:
+  clip_length_sec: 3
+
+crop_detect:
+  sample_seconds: 30
+  random_seed: 42
+
+dedup:
+  hamming_threshold: 8
+
+motion:
+  unimatch_weight: 0.7
+  vmaf_weight: 0.3
+  sample_interval_sec: 0.5
+  use_fixed_bounds: false
+  percentile_low: 10
+  percentile_high: 90
+  min_score_floor: 0.05
+  max_score_ceiling: 0.95
+  min_score: 0.15
+  max_score: 0.80
+
+dover:
+  min_overall_score: 0.60
+
+quality_weights:
+  clip_score: 0.35
+  icr: 0.40
+  aod: 0.25
+
+gate:
+  discard_below: 0.20
+  review_below: 0.30
+
+watermark:
+  sample_clips: 5
+  corner_threshold: 0.6
+  delogo:
+    x: 12
+    y: 10
+    w: 140
+    h: 58

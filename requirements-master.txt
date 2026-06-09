@@ -1,0 +1,16 @@
+# Extra deps for s7 (actor_tagger) + s8 (captioner / vlm_backend)
+# Install into the same conda env as requirements.txt
+
+ultralytics>=8.3.0
+insightface>=0.7.3
+onnxruntime-gpu>=1.17.0
+transformers>=4.45.0
+accelerate>=0.34.0
+qwen-vl-utils>=0.0.8
+pillow>=10.0.0
+
+# Optional: vLLM caption backend (10-15x faster, multi-GPU)
+# vllm>=0.6.0
+
+# Optional: flash attention for transformers backend
+# pip install flash-attn --no-build-isolation

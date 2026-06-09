@@ -1,0 +1,12 @@
+name: indic_video_pipeline
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - ffmpeg
+  - pip:
+      - -r requirements.txt
+      - -r requirements-master.txt
+      # After create: bash scripts/fix_cuda_torch.sh  (cu128 for this cluster)

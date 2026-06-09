@@ -1,0 +1,63 @@
+# v2 single-GPU preset — same models as pipeline_v2.yaml, all stages on GPU 0
+# Usage: CUDA_VISIBLE_DEVICES=0 python run_pipeline.py --config pipeline_v2_1gpu.yaml ...
+
+pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
+outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v2_outputs
+models_root: /mnt/data0/harsha/new_dataset_pipeline/models
+
+output_layout: per_movie
+isolate_run_outputs: true
+
+workspaces_dir: workspaces
+logs_dir: logs
+reports_dir: reports
+
+prompt_pack:
+  zip_path: /mnt/data0/harsha/new_dataset_pipeline/zip_12buckets.zip
+
+export:
+  include_verdicts:
+    - FINAL
+    - REVIEW
+
+services_order:
+  - s1
+  - s2
+  - s3
+  - s4
+  - s5
+  - s6
+  - s7
+  - s8
+  - s9
+  - s10
+  - s11
+  - s12
+
+movie_registry: data/movie_registry.csv
+
+# Gemma gpu_ids normally come from models.yaml; override here for 1-GPU runs
+models_overrides:
+  gemma:
+    gpu_ids: [0]
+
+master_pipeline:
+  root: /mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset
+  vlm_model_name: Qwen3-VL-32B
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-32B-Instruct
+  gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-27b-it
+  actor_embeddings_dir: actors/actor_embeddings
+  yolo_face_model: yolov12n-face.pt
+  prompts_dir: prompts
+  actor_similarity_threshold: 0.35
+  classify_gpu_ids: [0]
+  verify_gpu_ids: [0]
+  caption_gpu_ids: [0]
+  actor_tag_gpu_id: 0
+  clip_gpu_ids: [0]
+  caption_backend: transformers
+  max_new_tokens: 512
+  auto_download_yolo: true
+
+captioner:
+  backend: qwen

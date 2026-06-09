@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from common.base_service import BaseService
 from common.clip_io import export_clip_mp4
+from common.clip_workers import export_clip_mp4_job, motion_scores_job, vmaf_motion_job
+from common.ray_pool import parallel_map, ray_enabled, ray_settings
 from common.dedup_bktree import BKTree, phash_to_int
 from common.metadata_manager import MetadataManager
 from common.motion_filter import (
@@ -126,22 +128,88 @@ class DedupService(BaseService):
         }
         by_source: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
-        for rec in records:
-            if self.should_skip_clip(rec):
-                continue
-            start, end = clip_local_range(rec, self.config)
-            crop_box = rec.get("crop_box", "")
-            unimatch = compute_unimatch_motion(
-                str(self.movie_video), start, end, model_cfg, crop_box=crop_box
-            )
-            vmaf = compute_vmaf_motion(
-                str(self.movie_video), start, end, model_cfg, crop_box=crop_box
-            )
-            rec["unimatch_motion"] = round(unimatch, 4)
-            rec["vmaf_motion"] = round(vmaf, 4)
-            rec["motion_score"] = round(combine_motion_scores(unimatch, vmaf, model_cfg), 4)
-            source = rec.get("source_video") or rec.get("video_id", "unknown")
-            by_source[source].append(rec)
+        motion_targets = [
+            rec for rec in records if not self.should_skip_clip(rec)
+        ]
+        rc = ray_settings(self.config)
+        min_parallel = int(rc.get("parallel_clip_min", 4))
+        parallel_motion = bool(rc.get("parallel_motion", False))
+        parallel_vmaf = bool(rc.get("parallel_vmaf", ray_enabled(self.config)))
+
+        if (
+            parallel_vmaf
+            and not parallel_motion
+            and len(motion_targets) >= min_parallel
+        ):
+            vmaf_jobs = [
+                {
+                    "record": rec,
+                    "video_path": str(self.movie_video),
+                    "config": self.config,
+                    "model_cfg": model_cfg,
+                }
+                for rec in motion_targets
+            ]
+            vmaf_by_id = {
+                row["clip_id"]: row["vmaf_motion"]
+                for row in parallel_map(
+                    self.config, vmaf_motion_job, vmaf_jobs, label="s2_vmaf"
+                )
+            }
+            for rec in motion_targets:
+                start, end = clip_local_range(rec, self.config)
+                crop_box = rec.get("crop_box", "")
+                vmaf = float(vmaf_by_id.get(rec["clip_id"], 0.0))
+                unimatch = compute_unimatch_motion(
+                    str(self.movie_video), start, end, model_cfg, crop_box=crop_box
+                )
+                rec["unimatch_motion"] = round(unimatch, 4)
+                rec["vmaf_motion"] = round(vmaf, 4)
+                rec["motion_score"] = round(
+                    combine_motion_scores(unimatch, vmaf, model_cfg), 4
+                )
+                source = rec.get("source_video") or rec.get("video_id", "unknown")
+                by_source[source].append(rec)
+        elif parallel_motion and len(motion_targets) >= min_parallel:
+            jobs = [
+                {
+                    "record": rec,
+                    "video_path": str(self.movie_video),
+                    "config": self.config,
+                    "model_cfg": model_cfg,
+                }
+                for rec in motion_targets
+            ]
+            scores_by_id = {
+                row["clip_id"]: row
+                for row in parallel_map(
+                    self.config, motion_scores_job, jobs, label="s2_motion"
+                )
+            }
+            for rec in motion_targets:
+                row = scores_by_id.get(rec["clip_id"], {})
+                rec["unimatch_motion"] = row.get("unimatch_motion", 0.0)
+                rec["vmaf_motion"] = row.get("vmaf_motion", 0.0)
+                rec["motion_score"] = row.get("motion_score", 0.0)
+                source = rec.get("source_video") or rec.get("video_id", "unknown")
+                by_source[source].append(rec)
+        else:
+            for rec in motion_targets:
+                start, end = clip_local_range(rec, self.config)
+                crop_box = rec.get("crop_box", "")
+                unimatch = compute_unimatch_motion(
+                    str(self.movie_video), start, end, model_cfg, crop_box=crop_box
+                )
+                vmaf = compute_vmaf_motion(
+                    str(self.movie_video), start, end, model_cfg, crop_box=crop_box
+                )
+                rec["unimatch_motion"] = round(unimatch, 4)
+                rec["vmaf_motion"] = round(vmaf, 4)
+                rec["motion_score"] = round(
+                    combine_motion_scores(unimatch, vmaf, model_cfg), 4
+                )
+                source = rec.get("source_video") or rec.get("video_id", "unknown")
+                by_source[source].append(rec)
 
         static = excessive = passed = 0
         reject_dirs = self._reject_dirs()
@@ -178,18 +246,47 @@ class DedupService(BaseService):
         dover = DoverClient(self.config)
         reject_dirs = self._reject_dirs()
         passed = rejected = 0
+        rc = ray_settings(self.config)
+        parallel_export = bool(rc.get("parallel_clip_export", ray_enabled(self.config)))
+        min_parallel = int(rc.get("parallel_clip_min", 4))
 
-        for rec in records:
-            if self.should_skip_clip(rec):
-                continue
-            if rec.get("motion_score") is None:
-                continue
+        dover_targets = [
+            rec
+            for rec in records
+            if not self.should_skip_clip(rec) and rec.get("motion_score") is not None
+        ]
+        clips_dir = self.movie_dir / "clips"
+        clips_dir.mkdir(parents=True, exist_ok=True)
 
+        if (
+            parallel_export
+            and self.movie_video
+            and len(dover_targets) >= min_parallel
+        ):
+            export_cfg = self.config.get("pipeline", {}).get("export", {})
+            thresholds = self.config.get("thresholds", {})
+            export_jobs = [
+                {
+                    "record": rec,
+                    "video_path": str(self.movie_video),
+                    "clip_path": str(clips_dir / f"{rec['clip_id']}.mp4"),
+                    "export_cfg": export_cfg,
+                    "thresholds": thresholds,
+                }
+                for rec in dover_targets
+            ]
+            parallel_map(
+                self.config,
+                export_clip_mp4_job,
+                export_jobs,
+                label="s2_clip_export",
+            )
+
+        for rec in dover_targets:
             clip_path: Optional[Path] = None
             if self.movie_video:
-                clip_path = self.movie_dir / "clips" / f"{rec['clip_id']}.mp4"
-                clip_path.parent.mkdir(parents=True, exist_ok=True)
-                if not clip_path.exists():
+                clip_path = clips_dir / f"{rec['clip_id']}.mp4"
+                if not clip_path.exists() or clip_path.stat().st_size == 0:
                     export_clip_mp4(self.movie_video, rec, clip_path)
 
             scores = dover.score_video(str(clip_path or self.movie_video))

@@ -1,7 +1,7 @@
 # Architecture model map (see terminal GPU banners per service)
 
 classifier: Qwen3-VL-32B
-verifier: Gemma-27B
+verifier: Gemma-3-4B-IT
 captioner: Gemma-3-4B-IT
 face: YOLOv12n-face + InsightFace-buffalo_l
 scoring: CLIP + GroundingDINO + spaCy
@@ -14,10 +14,10 @@ master_caption:
   use_placeholder: false
 
 gemma:
-  model_name: Gemma-27B
-  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-27b-it
-  gpu_ids: [5, 6]
-  max_new_tokens: 256
+  model_name: Gemma-3-4B-IT
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+  gpu_ids: [1]
+  max_new_tokens: 128
   use_placeholder: false
 
 gemma_caption:
@@ -28,10 +28,21 @@ gemma_caption:
   max_tokens: 1000
   use_placeholder: false
 
+# Native MP4 video input (Qwen2.5-VL). Fast default: 7B; falls back to 32B if 7B missing.
+qwen_video_caption:
+  model_name: Qwen2.5-VL-7B-Instruct
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  gpu_ids: [0]
+  batch_size: 1
+  max_tokens: 1000
+  video_fps: 1.5
+  max_pixels: 201600
+  use_placeholder: false
+
 clip_model:
   name: ViT-B-32
   pretrained: openai
-  use_placeholder: true
+  use_placeholder: false
 
 lama:
   use_placeholder: true

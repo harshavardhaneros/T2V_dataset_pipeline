@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from PIL import Image
 
+from common.clip_io import frame_offsets_for_record
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
 from common.paths import models_root
 from common.screen_position import frame_position_label, known_actor_names
@@ -29,7 +30,7 @@ CAPTION_SYSTEM_PROMPT = (
     "- For humans, describe from THEIR perspective (not the viewer's).\n"
     "- Prioritise culturally significant visual elements when present.\n"
     "- Include actor names and positions while explaining object actions.\n"
-    "- You are captioning a short VIDEO CLIP (about 3 seconds), not a single photograph.\n"
+    "- You are captioning a short VIDEO CLIP (not a single photograph).\n"
     "- Use all provided sequential frames to infer motion, actions, and camera movement.\n"
     "- short_description and actor_name_and_action must describe what happens over the clip.\n\n"
     "Indian Cultural Details (include ONLY if visible):\n"
@@ -100,7 +101,20 @@ def parse_caption_json(text: str) -> Dict[str, Any]:
         return {"short_description": line, "_parse_error": True}
 
 
-def build_caption_user_text(rec: Dict[str, Any], *, multi_frame: bool = False) -> str:
+def _clip_duration_sec(rec: Dict[str, Any]) -> float:
+    try:
+        d = float(rec.get("duration") or 0)
+    except (TypeError, ValueError):
+        d = 0.0
+    return d if d > 0 else 5.0
+
+
+def build_caption_user_text(
+    rec: Dict[str, Any],
+    *,
+    multi_frame: bool = False,
+    frame_offsets: Optional[List[float]] = None,
+) -> str:
     """User prompt aligned with eros_caption_video/pipeline.py H200Captioner._build_messages."""
     clip_actors = rec.get("clip_actors") or known_actor_names(rec.get("actors") or [])
     lines = [
@@ -109,10 +123,13 @@ def build_caption_user_text(rec: Dict[str, Any], *, multi_frame: bool = False) -
         f"Frame 2: {rec.get('actors_f2', '[]')} | {rec.get('pos_f2', 'unknown')}",
     ]
     if multi_frame:
+        dur = _clip_duration_sec(rec)
+        offsets = frame_offsets or [dur * 0.2, dur * 0.5, dur * 0.8]
+        times = ", ".join(f"{t:.1f}s" for t in offsets[:3])
         lines.insert(
             0,
-            "The images are three sequential frames from one 3-second video clip "
-            "(at 0.5s, 1.5s, and 2.5s). Describe the full clip, including movement.",
+            f"The images are three sequential frames from one {dur:g}-second video clip "
+            f"(at {times}). Describe the full clip, including movement.",
         )
     lines.append(
         "You are a Visual Art Director generating structured, "
@@ -147,6 +164,7 @@ class GemmaCaptionService:
     _shared: Optional["GemmaCaptionService"] = None
 
     def __init__(self, config: Dict[str, Any]):
+        self._config = config
         cc = config.get("models", {}).get("gemma_caption", {})
         pcfg = config.get("pipeline", {}).get("captioner", {})
         self.model_path = str(gemma_caption_model_path(config))
@@ -204,7 +222,8 @@ class GemmaCaptionService:
     ) -> tuple[list | None, list[Image.Image]]:
         if not frame_paths:
             return None, []
-        labels = ("0.5s", "1.5s", "2.5s")
+        offsets = frame_offsets_for_record(rec, self._config)
+        dur = _clip_duration_sec(rec)
         images: list[Image.Image] = []
         content: list[dict] = []
         multi = len(frame_paths) > 1
@@ -218,14 +237,19 @@ class GemmaCaptionService:
                 continue
             images.append(img)
             if multi:
-                label = labels[i] if i < len(labels) else f"frame {i + 1}"
-                content.append({"type": "text", "text": f"Frame at {label} into the clip:"})
+                t = offsets[i] if i < len(offsets) else dur * (i + 1) / (len(frame_paths) + 1)
+                content.append({
+                    "type": "text",
+                    "text": f"Frame at {t:.1f}s into the clip:",
+                })
             content.append({"type": "image", "image": img})
         if not images:
             return None, []
         content.append({
             "type": "text",
-            "text": build_caption_user_text(rec, multi_frame=multi),
+            "text": build_caption_user_text(
+                rec, multi_frame=multi, frame_offsets=offsets
+            ),
         })
         messages = [
             {"role": "system", "content": [{"type": "text", "text": CAPTION_SYSTEM_PROMPT}]},
@@ -295,11 +319,11 @@ class GemmaCaptionService:
                         img.close()
                     except Exception:
                         pass
-                torch.cuda.empty_cache()
 
         producer.join()
         gc.collect()
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         return results
 
     def cleanup(self) -> None:

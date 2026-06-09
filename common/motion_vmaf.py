@@ -33,28 +33,18 @@ def _frame_diff_motion(
     crop_box: str = "",
     interval_sec: float = 0.5,
 ) -> float:
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        return 0.0
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    crop = parse_crop_box(crop_box)
+    from common.video_read import read_frames_at_times
+
     times = _sample_times(start_sec, end_sec, interval_sec)
+    frames = read_frames_at_times(video_path, times, crop_box=crop_box)
     prev_gray: Optional[np.ndarray] = None
     diffs: List[float] = []
-    for t in times:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(t * fps))
-        ok, frame = cap.read()
-        if not ok:
-            continue
-        if crop:
-            cw, ch, cx, cy = crop
-            frame = frame[cy : cy + ch, cx : cx + cw]
+    for frame in frames:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if prev_gray is not None:
             diff = cv2.absdiff(gray, prev_gray)
             diffs.append(float(np.mean(diff)) / 255.0)
         prev_gray = gray
-    cap.release()
     return float(np.mean(diffs)) if diffs else 0.0
 
 

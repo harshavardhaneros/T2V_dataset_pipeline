@@ -1,4 +1,4 @@
-# v3 single-GPU preset (Gemma caption on GPU 0)
+# v3 two-GPU preset — use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1)
 pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
 outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs
 models_root: /mnt/data0/harsha/new_dataset_pipeline/models
@@ -23,45 +23,56 @@ export:
 s2:
   mode: score_only
 
-# Ray: CPU-parallel per-clip work only (not every service).
-# s1 = single-pass video read (no Ray). s2 DOVER scoring stays sequential on GPU.
+s5:
+  classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  vote_frames: 1
+  max_tokens: 128
+  parallel: true
+
+s6:
+  mode: vlm
+
 ray:
   enabled: true
-  num_cpus: 8
-  parallel_clip_min: 4
+  num_cpus: 16
+  num_gpus: 2
+  gpu_workers: 2
+  parallel_clip_min: 2
   chunk_size: 32
-  parallel_frame_extract: true   # s7
-  parallel_vmaf: true            # s2 motion (CPU)
-  parallel_clip_export: true     # s2 ffmpeg exports (CPU)
-  parallel_motion: false         # full motion on all workers — off on 1 GPU
+  parallel_frame_extract: true
+  parallel_vmaf: true
+  parallel_clip_export: true
+  parallel_motion: false
+  parallel_gpu_caption: true
+  parallel_gpu_classify: true
 
 models_overrides:
   unimatch:
     device: cuda:0
   dover:
-    device: cuda:0
+    device: cuda:1
+  qwen_video_caption:
+    gpu_ids: [0, 1]
+    max_tokens: 1000
+    video_fps: 1.5
+    max_pixels: 201600
+  gemma:
+    model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+    model_name: Gemma-3-4B-IT
+    gpu_ids: [1]
+    max_new_tokens: 128
 
 captioner:
-  # qwen_video = native MP4 in (fastest quality/speed with 7B). gemma = 3-frame images.
   backend: qwen_video
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
-  gpu_ids: [0]
+  gpu_ids: [0, 1]
   batch_size: 1
-  max_tokens: 800
-  video_fps: 1.0
-  max_pixels: 151200
+  max_tokens: 1000
+  video_fps: 1.5
+  max_pixels: 201600
   multi_frame: true
   caption_all_clips: true
   prompt_version: qwen_video_eros_v1
-
-models_overrides:
-  gemma:
-    gpu_ids: [0]
-  gemma_caption:
-    gpu_ids: [0]
-    batch_size: 8
-  qwen_video_caption:
-    gpu_ids: [0]
 
 services_order:
   - s1
@@ -81,17 +92,18 @@ movie_registry: data/movie_registry.csv
 
 master_pipeline:
   root: /mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset
-  vlm_model_name: Qwen3-VL-32B
-  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-32B-Instruct
-  gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-27b-it
+  vlm_model_name: Qwen2.5-VL-7B-Instruct
+  classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
   actor_embeddings_dir: actors/actor_embeddings
   yolo_face_model: yolov12n-face.pt
   prompts_dir: prompts
   actor_similarity_threshold: 0.35
-  classify_gpu_ids: [0]
-  verify_gpu_ids: [0]
+  classify_gpu_ids: [0, 1]
+  verify_gpu_ids: [1]
   actor_tag_gpu_id: 0
   clip_gpu_ids: [0]
   caption_backend: transformers
-  max_new_tokens: 512
+  max_new_tokens: 128
   auto_download_yolo: true

@@ -29,26 +29,9 @@ def _read_frames(
     crop_box: str = "",
     resize: Optional[Tuple[int, int]] = None,
 ) -> List[np.ndarray]:
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        return []
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    crop = parse_crop_box(crop_box)
-    frames: List[np.ndarray] = []
-    for t in times:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(t * fps))
-        ok, frame = cap.read()
-        if not ok:
-            continue
-        if crop:
-            cw, ch, cx, cy = crop
-            frame = frame[cy : cy + ch, cx : cx + cw]
-        if resize:
-            w, h = resize
-            frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
-        frames.append(frame)
-    cap.release()
-    return frames
+    from common.video_read import read_frames_at_times
+
+    return read_frames_at_times(video_path, times, crop_box=crop_box, resize=resize)
 
 
 def _mean_flow_magnitude(frames: List[np.ndarray]) -> float:

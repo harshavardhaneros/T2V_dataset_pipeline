@@ -16,8 +16,8 @@ class GateService(BaseService):
     def process_movie(self) -> Dict[str, Any]:
         records = self.metadata.read_all()
         gate = self.config.get("thresholds", {}).get("gate", {})
-        discard_below = float(gate.get("discard_below", 0.20))
-        review_below = float(gate.get("review_below", 0.30))
+        discard_below = float(gate.get("discard_below", 0.10))
+        review_below = float(gate.get("review_below", 0.18))
 
         counts = {"DISCARD": 0, "REVIEW": 0, "FINAL": 0}
         for rec in records:

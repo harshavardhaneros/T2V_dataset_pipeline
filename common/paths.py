@@ -64,6 +64,40 @@ def qwen_model_path(config: Dict[str, Any]) -> Path:
     return models_root(config) / "Qwen2.5-VL-32B-Instruct"
 
 
+def qwen_classify_model_path(config: Dict[str, Any]) -> Path:
+    """7B classifier default (fast s5); falls back to 32B if 7B missing."""
+    s5 = config.get("pipeline", {}).get("s5", {})
+    mp = config.get("pipeline", {}).get("master_pipeline", {})
+    explicit = s5.get("classify_model_path") or mp.get("classify_model_path")
+    if explicit:
+        return Path(explicit)
+    root = models_root(config)
+    for name in ("Qwen2.5-VL-7B-Instruct", "Qwen2.5-VL-32B-Instruct"):
+        candidate = root / name
+        if (candidate / "config.json").exists():
+            return candidate
+    return root / "Qwen2.5-VL-7B-Instruct"
+
+
+def qwen_video_model_path(config: Dict[str, Any]) -> Path:
+    """Resolve Qwen2.5-VL weights for native video captioning (prefers 7B if present)."""
+    qc = config.get("models", {}).get("qwen_video_caption", {})
+    pcfg = config.get("pipeline", {}).get("captioner", {})
+    explicit = qc.get("model_path") or pcfg.get("model_path")
+    if explicit:
+        return Path(explicit)
+    root = models_root(config)
+    for name in (
+        "Qwen2.5-VL-7B-Instruct",
+        "Qwen2.5-VL-3B-Instruct",
+        "Qwen2.5-VL-32B-Instruct",
+    ):
+        candidate = root / name
+        if (candidate / "config.json").exists():
+            return candidate
+    return root / "Qwen2.5-VL-7B-Instruct"
+
+
 def yolo_face_model_path(config: Dict[str, Any]) -> Path:
     mp = config["pipeline"].get("master_pipeline", {})
     rel = mp.get("yolo_face_model", "yolov12n-face.pt")

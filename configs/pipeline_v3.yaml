@@ -23,6 +23,16 @@ export:
 s2:
   mode: score_only
 
+ray:
+  enabled: true
+  num_cpus: 16
+  parallel_clip_min: 4
+  chunk_size: 64
+  parallel_frame_extract: true
+  parallel_vmaf: true
+  parallel_clip_export: true
+  parallel_motion: false
+
 models_overrides:
   unimatch:
     device: cuda:0
@@ -30,13 +40,16 @@ models_overrides:
     device: cuda:0
 
 captioner:
-  backend: gemma
-  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+  backend: qwen_video
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   gpu_ids: [0]
-  batch_size: 8
-  max_tokens: 1500
+  batch_size: 1
+  max_tokens: 800
+  video_fps: 2.0
+  max_pixels: 151200
   multi_frame: true
-  prompt_version: eros_structured_v1
+  caption_all_clips: true
+  prompt_version: qwen_video_eros_v1
 
 services_order:
   - s1

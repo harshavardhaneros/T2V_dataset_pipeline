@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 
 from common.base_service import BaseService
 from common.clip_io import clip_frame_path, extract_clip_frames
+from common.clip_workers import extract_clip_frames_job
+from common.ray_pool import parallel_map, ray_settings
 from common.gemma_caption import enrich_record_actor_fields
 from common.gpu_info import log_service_gpus
 from common.master_bridge import init_master, tag_actor_frames
@@ -52,10 +54,49 @@ class ActorTaggingService(BaseService):
         for d in (frames_dir, actor_frames_dir, tags_dir):
             d.mkdir(parents=True, exist_ok=True)
 
+        caption_all = bool(
+            self.config.get("pipeline", {}).get("captioner", {}).get("caption_all_clips", True)
+        )
         to_tag: List[Dict[str, Any]] = []
+        frames_extracted = 0
+
+        if not self.movie_video:
+            raise FileNotFoundError(f"No video in {self.movie_dir}")
+
+        extract_targets: List[Dict[str, Any]] = []
         for rec in records:
             if self.should_skip_clip(rec):
                 continue
+            if caption_all:
+                extract_targets.append(rec)
+
+        parallel_frames = bool(ray_settings(self.config).get("parallel_frame_extract", True))
+        if extract_targets:
+            if parallel_frames and len(extract_targets) >= int(
+                ray_settings(self.config).get("parallel_clip_min", 4)
+            ):
+                jobs = [
+                    {
+                        "video_path": str(self.movie_video),
+                        "record": rec,
+                        "frames_dir": str(frames_dir),
+                    }
+                    for rec in extract_targets
+                ]
+                counts = parallel_map(
+                    self.config, extract_clip_frames_job, jobs, label="s7_frame_extract"
+                )
+                frames_extracted = sum(counts)
+            else:
+                for rec in extract_targets:
+                    frames_extracted += len(
+                        extract_clip_frames(self.movie_video, rec, frames_dir)
+                    )
+
+        for rec in records:
+            if self.should_skip_clip(rec):
+                continue
+
             if not rec.get("keep", True) or rec.get("reject"):
                 rec["actor_status"] = "skipped"
                 rec["actors"] = []
@@ -72,10 +113,14 @@ class ActorTaggingService(BaseService):
 
         if not to_tag:
             self.metadata.write_all(records)
-            return {"people_clips": 0, "tagged": 0, "no_match": 0}
-
-        if not self.movie_video:
-            raise FileNotFoundError(f"No video in {self.movie_dir}")
+            return {
+                "people_clips": 0,
+                "tagged": 0,
+                "no_match": 0,
+                "frames_extracted": frames_extracted,
+                "frames_per_clip": 3,
+                "caption_all_clips": caption_all,
+            }
 
         from common.master_bridge import ensure_yolo_face_model
 
@@ -85,7 +130,9 @@ class ActorTaggingService(BaseService):
         clip_frame_map: Dict[str, Dict[int, Path]] = {}
 
         for rec in to_tag:
-            paths = extract_clip_frames(self.movie_video, rec, frames_dir)
+            if not caption_all:
+                paths = extract_clip_frames(self.movie_video, rec, frames_dir)
+                frames_extracted += len(paths)
             frame_map = {}
             for i in (1, 2, 3):
                 p = clip_frame_path(frames_dir, rec["clip_id"], i)
@@ -115,9 +162,10 @@ class ActorTaggingService(BaseService):
         self.metadata.write_all(records)
         return {
             "people_clips": len(to_tag),
-            "frames_extracted": len(all_image_paths),
+            "frames_extracted": frames_extracted or len(all_image_paths),
             "tagged": tagged,
             "no_match": no_match,
             "frames_per_clip": 3,
+            "caption_all_clips": caption_all,
             "actor_tag_gpu": master_cfg.get("actor_tag_gpu_id", 0),
         }

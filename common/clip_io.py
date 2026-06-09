@@ -12,8 +12,38 @@ from common.ffmpeg_utils import parse_crop_box
 from common.video_time import clip_local_range
 from common.watermark_vf import delogo_filter
 
-# Offsets within 3s clip: 0.5s, 1.5s, 2.5s (eros reference)
-FRAME_OFFSETS = [0.5, 1.5, 2.5]
+# Default fractions of clip duration for 3-frame sampling (20%, 50%, 80%).
+DEFAULT_FRAME_FRACTIONS = [0.2, 0.5, 0.8]
+
+
+def frame_offsets_for_duration(
+    duration_sec: float,
+    fractions: Optional[List[float]] = None,
+) -> List[float]:
+    """Seconds into clip for frame 1/2/3 (relative to clip start)."""
+    d = max(1.0, float(duration_sec))
+    fracs = fractions or DEFAULT_FRAME_FRACTIONS
+    return [round(d * f, 3) for f in fracs]
+
+
+def frame_offsets_for_record(
+    record: Dict[str, Any],
+    config: Optional[Dict[str, Any]] = None,
+) -> List[float]:
+    duration = float(record.get("duration") or 0)
+    fractions = None
+    if config:
+        vc = config.get("thresholds", {}).get("virtual_clips", {})
+        if not duration:
+            duration = float(vc.get("clip_length_sec", 5))
+        fractions = vc.get("frame_fractions")
+    if duration <= 0:
+        duration = 5.0
+    return frame_offsets_for_duration(duration, fractions)
+
+
+# Back-compat alias for 3s clips at 0.5/1.5/2.5
+FRAME_OFFSETS = frame_offsets_for_duration(3.0)
 
 
 def clip_frame_path(frames_dir: Path, clip_id: str, idx: int) -> Path:
@@ -28,7 +58,8 @@ def extract_clip_frames(
 ) -> List[Path]:
     """Extract 3 cropped frames; also writes {clip_id}.jpg as middle frame."""
     frames_dir.mkdir(parents=True, exist_ok=True)
-    offsets = offsets or FRAME_OFFSETS
+    if offsets is None:
+        offsets = frame_offsets_for_record(record)
     start, _ = clip_local_range(record, None)
     crop = parse_crop_box(record.get("crop_box", ""))
 

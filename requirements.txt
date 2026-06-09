@@ -7,6 +7,9 @@ tqdm>=4.66.0
 requests>=2.31.0
 numpy>=1.24.0
 
+# Optional parallelism (falls back to ProcessPool if missing)
+ray>=2.9.0
+
 # Optional GPU / model backends
 # open-clip-torch>=2.24.0
 # torch>=2.0.0

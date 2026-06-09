@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Indic Cultural Video Dataset — Pipeline v3</title>
+  <style>
+    :root {
+      --bg: #0c0e12;
+      --panel: #141820;
+      --panel2: #1a2030;
+      --border: #2a3348;
+      --text: #e6eaf2;
+      --muted: #8b95a8;
+      --cpu: #3d7ec9;
+      --gpu: #9b59d4;
+      --model: #c97a3d;
+      --pfs: #2ecc71;
+      --accent: #5dade2;
+      --warn: #f1c40f;
+      --final: #58d68d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    header {
+      padding: 1.5rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #12161f, var(--bg));
+    }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.55rem; font-weight: 600; }
+    header p { margin: 0; color: var(--muted); max-width: 900px; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 1.25rem 2rem 3rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 1rem 0; }
+    .badge {
+      font-size: 0.72rem; padding: 0.2rem 0.55rem; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--panel);
+    }
+    .badge.cpu { border-color: var(--cpu); color: #a8d4ff; }
+    .badge.gpu { border-color: var(--gpu); color: #ddb8ff; }
+    .badge.pfs { border-color: var(--pfs); color: #a8f0c8; }
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.6rem; margin: 1.25rem 0;
+    }
+    .stat {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+    }
+    .stat b { display: block; font-size: 1.35rem; color: var(--accent); }
+    .stat span { font-size: 0.75rem; color: var(--muted); }
+    h2 {
+      font-size: 1rem; color: var(--accent); margin: 2rem 0 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+    }
+    .pfs-banner {
+      background: var(--panel2); border: 1px solid var(--pfs); border-radius: 10px;
+      padding: 1rem 1.25rem; margin: 1rem 0;
+    }
+    .pfs-banner strong { color: #7bed9f; }
+    .flow-note {
+      font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem;
+      padding: 0.65rem 0.9rem; background: var(--panel); border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+    }
+    .services { display: flex; flex-direction: column; gap: 0.65rem; }
+    .svc {
+      display: grid; grid-template-columns: 52px 1fr;
+      gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+      background: var(--panel);
+    }
+    .svc-num {
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.1rem;
+    }
+    .svc.cpu .svc-num { background: #1e3a5f; color: #7eb8ff; }
+    .svc.gpu .svc-num { background: #3d2a5c; color: #c9a0ff; }
+    .svc-body { padding: 0.75rem 1rem; }
+    .svc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+    .svc-title { font-weight: 600; font-size: 0.95rem; }
+    .tag {
+      font-size: 0.65rem; padding: 0.12rem 0.4rem; border-radius: 3px; font-weight: 600;
+    }
+    .tag.cpu { background: #1e3a5f; color: #9ecfff; }
+    .tag.gpu { background: #3d2a5c; color: #d4b5ff; }
+    .tag.ray { background: #3d3a1e; color: #f9e79f; }
+    .svc-desc { color: var(--muted); font-size: 0.82rem; margin-bottom: 0.45rem; }
+    .io { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.78rem; }
+    @media (max-width: 700px) { .io { grid-template-columns: 1fr; } }
+    .io div { background: var(--panel2); padding: 0.45rem 0.55rem; border-radius: 6px; }
+    .io b { color: var(--accent); font-size: 0.68rem; text-transform: uppercase; }
+    .route-box {
+      display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.75rem; align-items: center;
+      margin: 1rem 0; font-size: 0.85rem;
+    }
+    .route-card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.75rem; text-align: center;
+    }
+    .route-card.people { border-color: #5dade2; }
+    .route-card.other { border-color: #566573; }
+    .arrow { color: var(--muted); font-size: 1.2rem; text-align: center; }
+    .models {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.6rem;
+    }
+    .model-card {
+      background: var(--panel2); border: 1px solid var(--model); border-radius: 8px;
+      padding: 0.65rem 0.8rem; font-size: 0.8rem;
+    }
+    .model-card b { color: #f5b041; display: block; margin-bottom: 0.25rem; }
+    table.schema {
+      width: 100%; border-collapse: collapse; font-size: 0.78rem;
+      background: var(--panel); border-radius: 10px; overflow: hidden;
+    }
+    table.schema th, table.schema td {
+      border: 1px solid var(--border); padding: 0.4rem 0.55rem; text-align: left;
+    }
+    table.schema th { background: var(--panel2); color: var(--accent); }
+    table.schema td:first-child { font-family: ui-monospace, monospace; color: #aed6f1; }
+    table.schema td:nth-child(3) { color: var(--muted); white-space: nowrap; }
+    .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.78rem; color: var(--muted); margin-top: 1rem; }
+    .legend span::before {
+      content: ""; display: inline-block; width: 10px; height: 10px;
+      border-radius: 2px; margin-right: 0.35rem; vertical-align: middle;
+    }
+    .legend .c-cpu::before { background: var(--cpu); }
+    .legend .c-gpu::before { background: var(--gpu); }
+    .legend .c-pfs::before { background: var(--pfs); }
+    .legend .c-ray::before { background: var(--warn); }
+    footer {
+      margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);
+      font-size: 0.75rem; color: var(--muted);
+    }
+    code { background: #1e2433; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Indic Cultural Video Dataset — Service Pipeline v3</h1>
+    <p>
+      12 independent services · shared state via <strong>metadata.jsonl</strong> per movie workspace
+      · config <code>pipeline_v3_2gpu.yaml</code> · 5&nbsp;s virtual clips · caption-all mode
+    </p>
+    <div class="badges">
+      <span class="badge pfs">v3_outputs / PFS workspace</span>
+      <span class="badge cpu">CPU + Ray parallel</span>
+      <span class="badge gpu">2× GPU · CUDA_VISIBLE_DEVICES=4,5</span>
+      <span class="badge">12 cultural buckets</span>
+      <span class="badge">Actor DB · Master_Pipeline</span>
+      <span class="badge">Target · CogVideoX / Wan2.1</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>12</b><span>independent services</span></div>
+      <div class="stat"><b>5 s</b><span>clip length (s1)</span></div>
+      <div class="stat"><b>12</b><span>cultural buckets</span></div>
+      <div class="stat"><b>0.35</b><span>actor cosine match</span></div>
+      <div class="stat"><b>5 frames</b><span>CLIP @ 5s clip</span></div>
+      <div class="stat"><b>0.25/0.30/0.20</b><span>CLIP / DOVER / motion</span></div>
+      <div class="stat"><b>≥ 0.18</b><span>FINAL gate</span></div>
+      <div class="stat"><b>0.10–0.18</b><span>REVIEW band</span></div>
+      <div class="stat"><b>7B</b><span>Qwen video caption</span></div>
+    </div>
+
+    <div class="pfs-banner">
+      <strong>▣ metadata.jsonl</strong> — single source of truth per movie under
+      <code>v3_outputs/{video_id}/</code>. Every service: read record → do work → write enriched record back.
+      Clips (<code>clips/*.mp4</code>), frames (<code>frames/</code>), export, and logs colocated.
+      Idempotent via <code>.done_sN</code> markers · <code>--from-step</code> resume · <code>--force</code> re-run.
+    </div>
+
+    <h2>Architecture</h2>
+    <div class="flow-note">
+      Monolithic runner <code>run_pipeline.py</code> orchestrates s1–s12 locally.
+      Production target: each stage → own container; GPU stages POST frames/clip bytes to model-service pool (same pattern as image pipeline).
+      <strong>Ray</strong> parallelizes CPU clip work (s2 VMAF export, s7 frames) and
+      <strong>2 GPU actors</strong> for s5 classify + s8 caption.
+    </div>
+
+    <div class="services">
+      <div class="svc cpu">
+        <div class="svc-num">1</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">extract clips + hash</span>
+            <span class="tag cpu">CPU</span>
+          </div>
+          <div class="svc-desc">
+            PySceneDetect thr=27 → 5&nbsp;s virtual clips within scenes → single-pass perceptual hash on middle keyframe.
+          </div>
+          <div class="io">
+            <div><b>In</b> movie *.mp4 + movie_registry.csv</div>
+            <div><b>Out</b> metadata.jsonl { video_id, clip_id, timestamp_*, duration, phash, crop_box }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc cpu">
+        <div class="svc-num">2</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">dedup + motion + DOVER</span>
+            <span class="tag cpu">CPU</span>
+            <span class="tag ray">Ray VMAF</span>
+            <span class="tag gpu">GPU</span>
+          </div>
+          <div class="svc-desc">
+            pHash BK-tree (Hamming ≤ 8) · UniMatch motion cuda:0 · VMAF cuda parallel · DOVER quality cuda:1.
+            Mode <code>score_only</code>: scores all clips, keep=true.
+          </div>
+          <div class="io">
+            <div><b>In</b> metadata { phash } + source video</div>
+            <div><b>Out</b> { dup_of, keep, unimatch_motion, vmaf_motion, motion_score, dover_score, s2_reject_reason }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc cpu">
+        <div class="svc-num">3</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">band removal</span><span class="tag cpu">CPU</span></div>
+          <div class="svc-desc">ffmpeg crop from detected letterbox · crop_box stored for downstream frame/clip export.</div>
+          <div class="io">
+            <div><b>In</b> kept clips + metadata</div>
+            <div><b>Out</b> metadata { band_removed, crop_box }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">4</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">watermark detect</span><span class="tag cpu">CPU</span></div>
+          <div class="svc-desc">Sample clips · corner logo heuristic · delogo on export (s11). LaMa inpaint planned.</div>
+          <div class="io">
+            <div><b>In</b> clips + metadata</div>
+            <div><b>Out</b> metadata { watermark }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">5</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">classify + filter</span>
+            <span class="tag gpu">GPU</span>
+            <span class="tag ray">Ray 2×</span>
+          </div>
+          <div class="svc-desc">
+            <strong>Qwen2.5-VL-7B</strong> · 1 middle keyframe · 12-bucket JSON · reject rules.
+          </div>
+          <div class="io">
+            <div><b>In</b> video + metadata</div>
+            <div><b>Out</b> { bucket, bucket_confidence, reject, reject_reason }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">6</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">verify classify</span>
+            <span class="tag gpu">GPU cuda:1</span>
+          </div>
+          <div class="svc-desc">
+            <strong>Gemma-3-4B</strong> 2nd pass on middle keyframe — confirms s5 bucket assignment.
+          </div>
+          <div class="io">
+            <div><b>In</b> metadata { bucket }</div>
+            <div><b>Out</b> { verified, bucket_verified, confidence, route }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="route-box">
+        <div class="route-card people">
+          <strong>route = people</strong><br />
+          bucket_01 · portraits<br />
+          → s7 actor tagging
+        </div>
+        <div class="arrow">⇢</div>
+        <div class="route-card other">
+          <strong>route = other</strong><br />
+          architecture · landscape · …<br />
+          → skip actor tag · still captioned (caption_all)
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">7</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">tag actors</span>
+            <span class="tag gpu">GPU</span>
+            <span class="tag ray">Ray frames</span>
+          </div>
+          <div class="svc-desc">
+            3 frames @ 20%/50%/80% of 5&nbsp;s clip · YOLOv12n-face + InsightFace vs actor embeddings.
+            All clips get frames; tagging runs on people route.
+          </div>
+          <div class="io">
+            <div><b>In</b> people clips + video</div>
+            <div><b>Out</b> { clip_actors, actors_f1–f3, pos_f1–f3, frame1–frame3 }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">8</div>
+        <div class="svc-body">
+          <div class="svc-head">
+            <span class="svc-title">caption</span>
+            <span class="tag gpu">GPU</span>
+            <span class="tag ray">Ray 2×</span>
+          </div>
+          <div class="svc-desc">
+            <strong>Qwen2.5-VL-7B</strong> native MP4 input @ 1.5&nbsp;fps · eros structured JSON ·
+            max_tokens 1000 · <strong>all clips</strong> (caption_all_clips).
+          </div>
+          <div class="io">
+            <div><b>In</b> clips/*.mp4 + actor fields</div>
+            <div><b>Out</b> { caption, caption_struct, generated_caption, prompt_version }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc gpu">
+        <div class="svc-num">9</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">quality scoring</span><span class="tag gpu">GPU</span></div>
+          <div class="svc-desc">
+            Pragmatic fusion: <strong>5-frame CLIP</strong> avg (OpenCLIP ViT-B/32) ·
+            <strong>dover_score</strong> (s2) · <strong>motion_score</strong> (s2) ·
+            bucket_semantic (s5+s6) · caption_present (s8).<br />
+            final = 0.25·CLIP + 0.30·DOVER + 0.20·motion + 0.15·bucket + 0.10·caption
+          </div>
+          <div class="io">
+            <div><b>In</b> video + caption + s2/s5/s6/s8 fields</div>
+            <div><b>Out</b> clip_score · icr (=bucket_sem) · aod (=dover) · final_score</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc cpu">
+        <div class="svc-num">10</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">gate / decision</span><span class="tag cpu">CPU</span></div>
+          <div class="svc-desc">DISCARD &lt; 0.10 · REVIEW 0.10–0.18 · FINAL ≥ 0.18 (calibrated for pragmatic s9)</div>
+          <div class="io">
+            <div><b>In</b> metadata { final_score }</div>
+            <div><b>Out</b> { verdict }</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc cpu">
+        <div class="svc-num">11</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">export</span><span class="tag cpu">CPU</span></div>
+          <div class="svc-desc">
+            captions.jsonl · CSV · by_bucket/ · clip MP4s · HTML review symlinks · optional delogo.
+          </div>
+          <div class="io">
+            <div><b>In</b> FINAL + REVIEW clips</div>
+            <div><b>Out</b> export/ tree + manifests</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc cpu">
+        <div class="svc-num">12</div>
+        <div class="svc-body">
+          <div class="svc-head"><span class="svc-title">report</span><span class="tag cpu">CPU</span></div>
+          <div class="svc-desc">Per-bucket stats · gate counts · duration totals · report.json</div>
+          <div class="io">
+            <div><b>In</b> full metadata.jsonl</div>
+            <div><b>Out</b> reports/</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>GPU model map (v3_2gpu)</h2>
+    <div class="models">
+      <div class="model-card">
+        <b>classify · s5</b>
+        Qwen2.5-VL-7B-Instruct · 1 frame · Ray actors on cuda:0 + cuda:1
+      </div>
+      <div class="model-card">
+        <b>verify · s6</b>
+        Gemma-3-4B-IT · bucket_matches check · cuda:1
+      </div>
+      <div class="model-card">
+        <b>caption · s8</b>
+        Qwen2.5-VL-7B · native MP4 @ 1.5 fps · Ray 2× replica
+      </div>
+      <div class="model-card">
+        <b>face · s7</b>
+        YOLOv12n-face + InsightFace buffalo_l · actor embeddings DB
+      </div>
+      <div class="model-card">
+        <b>motion · s2</b>
+        UniMatch cuda:0 · DOVER cuda:1 · VMAF CPU+Ray
+      </div>
+      <div class="model-card">
+        <b>scoring · s9</b>
+        OpenCLIP ViT-B/32 · 5 frames/clip · fuses s2 DOVER+motion + s6 bucket_verified
+      </div>
+    </div>
+
+    <h2>metadata.jsonl — per clip record (v3)</h2>
+    <table class="schema">
+      <thead>
+        <tr><th>field</th><th>description</th><th>step</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── identity ──</td></tr>
+        <tr><td>video_id</td><td>source movie identifier</td><td>s1</td></tr>
+        <tr><td>clip_id</td><td>unique clip slug</td><td>s1</td></tr>
+        <tr><td>source_video</td><td>filename</td><td>s1</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── temporal ──</td></tr>
+        <tr><td>timestamp_start / end</td><td>clip bounds (seconds)</td><td>s1</td></tr>
+        <tr><td>duration</td><td>clip length (5 s default)</td><td>s1</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── dedup & motion ──</td></tr>
+        <tr><td>phash</td><td>middle-keyframe pHash</td><td>s1</td></tr>
+        <tr><td>dup_of / keep</td><td>dedup parent · survivor flag</td><td>s2</td></tr>
+        <tr><td>unimatch_motion / vmaf_motion</td><td>motion sub-scores</td><td>s2</td></tr>
+        <tr><td>motion_score / dover_score</td><td>combined motion · aesthetic quality</td><td>s2</td></tr>
+        <tr><td>s2_reject_reason</td><td>advisory reject label (score_only)</td><td>s2</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── cleanup ──</td></tr>
+        <tr><td>band_removed / crop_box</td><td>letterbox crop params</td><td>s3</td></tr>
+        <tr><td>watermark</td><td>detected logo metadata</td><td>s4</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── classification ──</td></tr>
+        <tr><td>bucket / bucket_confidence</td><td>12-bucket label + confidence</td><td>s5</td></tr>
+        <tr><td>reject / reject_reason</td><td>filter outcome</td><td>s5</td></tr>
+        <tr><td>verified / bucket_verified</td><td>Gemma confirms bucket correct</td><td>s6</td></tr>
+        <tr><td>confidence / route</td><td>verify confidence · people | other</td><td>s6</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── actors ──</td></tr>
+        <tr><td>clip_actors / actors_f1–f3</td><td>matched names per frame</td><td>s7</td></tr>
+        <tr><td>pos_f1–f3 / frame1–frame3</td><td>screen position · frame paths</td><td>s7</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── caption & scoring ──</td></tr>
+        <tr><td>caption / caption_struct</td><td>eros JSON caption</td><td>s8</td></tr>
+        <tr><td>generated_caption</td><td>single-line JSON string</td><td>s8</td></tr>
+        <tr><td>clip_score</td><td>5-frame CLIP–caption alignment (avg)</td><td>s9</td></tr>
+        <tr><td>icr</td><td>bucket semantic score (bucket_verified × confidence)</td><td>s9</td></tr>
+        <tr><td>aod</td><td>DOVER overall (from s2, aliased for export)</td><td>s9</td></tr>
+        <tr><td>final_score</td><td>0.25·CLIP + 0.30·DOVER + 0.20·motion + 0.15·bucket + 0.10·caption</td><td>s9</td></tr>
+        <tr><td colspan="3" style="background:#1a2030;color:#5dade2;font-weight:600">── gate & state ──</td></tr>
+        <tr><td>verdict</td><td>FINAL | REVIEW | DISCARD</td><td>s10</td></tr>
+        <tr><td>processing_status</td><td>{ done_s1 … done_s12 }</td><td>all</td></tr>
+      </tbody>
+    </table>
+
+    <h2>12 cultural buckets</h2>
+    <p style="color:var(--muted);font-size:0.82rem;line-height:1.6">
+      bucket_01 people_portraits · bucket_02 clothing_textiles · bucket_03 architecture ·
+      bucket_04 landscape_nature · bucket_05 urban_street · bucket_06 rural_village ·
+      bucket_07 food_drink · bucket_08 festivals_rituals · bucket_09 objects_artifacts ·
+      bucket_10 animals_wildlife · bucket_11 art_design · bucket_12 abstract_texture
+    </p>
+
+    <h2>Run</h2>
+    <pre style="background:var(--panel);padding:1rem;border-radius:8px;border:1px solid var(--border);font-size:0.78rem;overflow:auto"><code>cd Indic_video_pipeline
+CUDA_VISIBLE_DEVICES=4,5 python run_pipeline.py \
+  --config pipeline_v3_2gpu.yaml \
+  --movie /path/to/movie.mp4 \
+  --video-id MOVIE_ID \
+  --from-step s1 --force
+
+# Review HTML hub
+python scripts/view_workspace.py --workspace /path/to/v3_outputs/MOVIE_ID
+cd v3_outputs/MOVIE_ID/export && python3 -m http.server 8765</code></pre>
+
+    <div class="legend">
+      <span class="c-cpu">CPU service</span>
+      <span class="c-gpu">GPU service</span>
+      <span class="c-pfs">Shared workspace / PFS</span>
+      <span class="c-ray">Ray parallel</span>
+    </div>
+
+    <footer>
+      Indic_video_pipeline v3 · generated architecture doc ·
+      clip review: <code>export/index.html</code> after s11
+    </footer>
+  </div>
+</body>
+</html>

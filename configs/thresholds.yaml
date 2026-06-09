@@ -3,7 +3,9 @@ scene_detection:
   min_scene_len: 15
 
 virtual_clips:
-  clip_length_sec: 3
+  clip_length_sec: 5
+  # Three frame sample times as fractions of clip length (used by s7/s8)
+  frame_fractions: [0.2, 0.5, 0.8]
 
 crop_detect:
   sample_seconds: 30
@@ -27,14 +29,21 @@ motion:
 dover:
   min_overall_score: 0.60
 
+quality_scoring:
+  # Five samples across 5s clip (seconds ≈ 0.5, 1.5, 2.5, 3.5, 4.5)
+  score_frame_fractions: [0.1, 0.3, 0.5, 0.7, 0.9]
+
 quality_weights:
-  clip_score: 0.35
-  icr: 0.40
-  aod: 0.25
+  clip_score: 0.25
+  dover_score: 0.30
+  motion_score: 0.20
+  bucket_semantic: 0.15
+  caption_present: 0.10
 
 gate:
-  discard_below: 0.20
-  review_below: 0.30
+  # Pragmatic s9 fusion scores lower than legacy ICR/AOD placeholders (~0.25–0.55 typical)
+  discard_below: 0.10
+  review_below: 0.18
 
 watermark:
   sample_clips: 5

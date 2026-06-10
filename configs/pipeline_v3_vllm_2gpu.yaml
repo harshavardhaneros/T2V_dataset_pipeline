@@ -1,4 +1,16 @@
-# v3 two-GPU preset — use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1)
+# v3 two-GPU + vLLM — batched s5 classify + s8 caption (faster than Ray+transformers).
+# Use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1, TP=2).
+#
+# Install once:
+#   bash scripts/install_vllm.sh
+#
+# Run:
+#   CUDA_VISIBLE_DEVICES=4,5 bash scripts/run_v3_vllm_2gpu.sh /path/to/movie.mp4 VIDEO_ID
+#
+# Re-caption only:
+#   CUDA_VISIBLE_DEVICES=4,5 python run_pipeline.py --config pipeline_v3_vllm_2gpu.yaml \
+#     --video-id VIDEO_ID --from-step s8 --to-step s11 --force
+
 pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
 outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs
 models_root: /mnt/data0/harsha/new_dataset_pipeline/models
@@ -18,16 +30,18 @@ export:
     - FINAL
     - REVIEW
   export_clips: true
-  remove_watermark: true
+  remove_watermark: false
 
 s2:
   mode: score_only
 
 s5:
+  backend: vllm
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   vote_frames: 1
   max_tokens: 128
-  parallel: true
+  gpu_ids: [0, 1]
+  parallel: false
 
 s6:
   mode: vlm
@@ -36,17 +50,15 @@ ray:
   enabled: true
   num_cpus: 16
   num_gpus: 2
-  gpu_workers: 2
   parallel_clip_min: 2
   chunk_size: 32
-  parallel_frame_extract: true
   parallel_clip_export: true
   parallel_motion: true
   motion_workers: 2
   parallel_dover: true
   dover_workers: 2
-  parallel_gpu_caption: true
-  parallel_gpu_classify: true
+  parallel_gpu_classify: false
+  parallel_gpu_caption: false
   parallel_gpu_verify: true
   verify_workers: 2
   parallel_actor_tag: true
@@ -55,9 +67,16 @@ ray:
   clip_score_workers: 2
   parallel_motion_gpu: true
   parallel_dover_gpu: true
+  parallel_frame_extract: true
   frame_extract_workers: 8
 
 models_overrides:
+  vllm:
+    batch_size: 16
+    max_tokens: 1000
+    max_model_len: 8192
+    max_images_per_prompt: 3
+    gpu_ids: [0, 1]
   unimatch:
     device: cuda:0
   dover:
@@ -65,28 +84,20 @@ models_overrides:
   clip_model:
     use_placeholder: false
     gpu_ids: [0, 1]
-  qwen_video_caption:
-    gpu_ids: [0, 1]
-    max_tokens: 1000
-    video_fps: 1.5
-    max_pixels: 201600
   gemma:
     model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
-    model_name: Gemma-3-4B-IT
     gpu_ids: [0, 1]
     max_new_tokens: 128
 
 captioner:
-  backend: qwen_video
+  backend: vllm
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   gpu_ids: [0, 1]
-  batch_size: 1
+  batch_size: 16
   max_tokens: 1000
-  video_fps: 1.5
-  max_pixels: 201600
   multi_frame: true
   caption_all_clips: true
-  prompt_version: qwen_video_eros_v1
+  prompt_version: qwen_vllm_eros_v1
 
 services_order:
   - s1
@@ -106,7 +117,6 @@ movie_registry: data/movie_registry.csv
 
 master_pipeline:
   root: /mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset
-  vlm_model_name: Qwen2.5-VL-7B-Instruct
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
@@ -118,6 +128,6 @@ master_pipeline:
   verify_gpu_ids: [0, 1]
   actor_tag_gpu_id: 0
   clip_gpu_ids: [0, 1]
-  caption_backend: transformers
+  caption_backend: vllm
   max_new_tokens: 128
   auto_download_yolo: true

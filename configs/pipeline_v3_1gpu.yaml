@@ -23,17 +23,18 @@ export:
 s2:
   mode: score_only
 
-# Ray: CPU-parallel per-clip work only (not every service).
-# s1 = single-pass video read (no Ray). s2 DOVER scoring stays sequential on GPU.
+# Ray: CPU-parallel ffmpeg; GPU motion/DOVER capped at 1 worker on single GPU.
 ray:
   enabled: true
   num_cpus: 8
   parallel_clip_min: 4
   chunk_size: 32
-  parallel_frame_extract: true   # s7
-  parallel_vmaf: true            # s2 motion (CPU)
-  parallel_clip_export: true     # s2 ffmpeg exports (CPU)
-  parallel_motion: false         # full motion on all workers — off on 1 GPU
+  parallel_frame_extract: true
+  parallel_clip_export: true
+  parallel_motion: true
+  motion_workers: 1
+  parallel_dover: true
+  dover_workers: 1
 
 models_overrides:
   unimatch:

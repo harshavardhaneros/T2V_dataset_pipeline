@@ -83,11 +83,9 @@ class QwenVideoCaptionWorker:
         import torch
         from transformers import AutoModelForImageTextToText, AutoProcessor
 
-        try:
-            import flash_attn  # noqa: F401
-            attn_impl = "flash_attention_2"
-        except ImportError:
-            attn_impl = "sdpa"
+        from common.attn_backend import resolve_attn_implementation
+
+        attn_impl = resolve_attn_implementation()
 
         self._processor = AutoProcessor.from_pretrained(self.model_path)
         self._model = AutoModelForImageTextToText.from_pretrained(

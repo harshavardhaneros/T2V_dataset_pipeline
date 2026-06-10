@@ -12,6 +12,7 @@ from scenedetect import SceneManager, open_video
 from scenedetect.detectors import ContentDetector
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.ffmpeg_utils import detect_crop
 from common.metadata_manager import MetadataManager, new_clip_record
 
@@ -74,7 +75,7 @@ class ExtractService(BaseService):
 
         phashes: Dict[int, str] = {}
         frame_idx = 0
-        for spec in ordered:
+        for spec in iter_progress(ordered, desc="s1 phash", unit="clip"):
             target = max(0, int(spec["middle_time"] * fps))
             while frame_idx < target:
                 if not cap.grab():
@@ -147,7 +148,7 @@ class ExtractService(BaseService):
         )
 
         records: List[Dict[str, Any]] = []
-        for spec in specs:
+        for spec in iter_progress(specs, desc="s1 clips", unit="clip"):
             idx = spec["clip_index"]
             clip_start = spec["clip_start"]
             clip_end = spec["clip_end"]

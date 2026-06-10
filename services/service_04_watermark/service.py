@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.frame_sampler import sample_keyframes
 from common.metadata_manager import MetadataManager
 
@@ -26,7 +27,7 @@ class WatermarkService(BaseService):
             meta_path.write_text(json.dumps(wm, indent=2), encoding="utf-8")
 
         updated = 0
-        for rec in records:
+        for rec in iter_progress(records, desc="s4 watermark", unit="clip"):
             if self.should_skip_clip(rec):
                 continue
             rec["watermark"] = dict(wm)
@@ -44,7 +45,7 @@ class WatermarkService(BaseService):
         votes: Dict[str, int] = {c: 0 for c in corners}
 
         if self.movie_video and active:
-            for rec in active:
+            for rec in iter_progress(active, desc="s4 watermark detect", unit="clip"):
                 frames = sample_keyframes(
                     str(self.movie_video),
                     rec["timestamp_start"],

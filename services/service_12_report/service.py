@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.metadata_manager import MetadataManager
 from common.paths import reports_dir
 
@@ -66,7 +67,7 @@ class ReportService(BaseService):
         txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-        for rec in records:
+        for rec in iter_progress(records, desc="s12 report", unit="clip"):
             if not self.should_skip_clip(rec):
                 MetadataManager.mark_done(rec, self.service_id)
         self.metadata.write_all(records)

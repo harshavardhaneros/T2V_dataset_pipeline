@@ -39,18 +39,16 @@ class GemmaVerifyService:
                 "Download e.g.: hf download google/gemma-3-4b-it --local-dir "
                 f"{self.model_path}"
             )
+        from common.attn_backend import resolve_attn_implementation
+
         log_service_gpus("s6", "VLM verify — Gemma bucket check", self.model_path, self.gpu_ids)
         import torch
         from transformers import AutoModelForImageTextToText, AutoProcessor
 
-        try:
-            import flash_attn  # noqa: F401
-            attn = "flash_attention_2"
-        except ImportError:
-            attn = "sdpa"
+        attn = resolve_attn_implementation()
 
         load_kwargs: Dict[str, Any] = {
-            "dtype": torch.bfloat16,
+            "torch_dtype": torch.bfloat16,
             "attn_implementation": attn,
         }
         if len(self.gpu_ids) == 1:

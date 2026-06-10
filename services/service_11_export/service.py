@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.caption_text import caption_to_str
 from common.clip_io import export_clip_mp4
 from common.review_clips import link_clip_under_export
@@ -47,7 +48,7 @@ class ExportService(BaseService):
         source = self.movie_video or find_movie_video(self.movie_dir)
         clips_written = 0
         if source and export_cfg.get("export_clips", True):
-            for rec in exported:
+            for rec in iter_progress(exported, desc="s11 export clips", unit="clip"):
                 clip_out = clips_dir / f"{rec['clip_id']}.mp4"
                 if clip_out.exists() and not self.force:
                     clips_written += 1

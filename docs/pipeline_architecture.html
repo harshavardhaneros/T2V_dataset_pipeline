@@ -213,7 +213,7 @@
             <span class="tag gpu">GPU</span>
           </div>
           <div class="svc-desc">
-            pHash BK-tree (Hamming ≤ 8) · UniMatch motion cuda:0 · VMAF cuda parallel · DOVER quality cuda:1.
+            Export 5s clips first · motion+DOVER on short MP4s · cached UniMatch · parallel Ray workers.
             Mode <code>score_only</code>: scores all clips, keep=true.
           </div>
           <div class="io">
@@ -410,7 +410,7 @@
       </div>
       <div class="model-card">
         <b>motion · s2</b>
-        UniMatch cuda:0 · DOVER cuda:1 · VMAF CPU+Ray
+        UniMatch cuda:0 (cached) · DOVER cuda:1 (parallel) · clip-first I/O
       </div>
       <div class="model-card">
         <b>scoring · s9</b>

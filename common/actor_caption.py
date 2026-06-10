@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
+
+ActorRef = Union[str, Dict[str, Any]]
 
 # Bucket prompt line that blocks using tagged actor names.
 _NO_REAL_NAMES_LINE = re.compile(
@@ -12,13 +14,17 @@ _NO_REAL_NAMES_LINE = re.compile(
 )
 
 
-def actor_display_names(actors: List[Dict[str, Any]]) -> List[str]:
+def actor_display_names(actors: List[ActorRef]) -> List[str]:
+    """Accept clip_actors as name strings (s7) or tag dicts with display_name."""
     names: List[str] = []
     for a in actors:
-        n = (a.get("display_name") or "").strip()
-        if not n and a.get("actor"):
-            n = str(a["actor"]).replace("_", " ").title()
-        if n:
+        if isinstance(a, str):
+            n = a.strip()
+        else:
+            n = (a.get("display_name") or "").strip()
+            if not n and a.get("actor"):
+                n = str(a["actor"]).replace("_", " ").title()
+        if n and n not in names:
             names.append(n)
     return names
 
@@ -27,7 +33,7 @@ def strip_no_real_people_rule(bucket_prompt: str) -> str:
     return _NO_REAL_NAMES_LINE.sub("", bucket_prompt).strip()
 
 
-def build_actor_caption_prompt(bucket_prompt: str, actors: List[Dict[str, Any]]) -> str:
+def build_actor_caption_prompt(bucket_prompt: str, actors: List[ActorRef]) -> str:
     """Build VLM prompt: tagged actors must appear by name in every bullet."""
     names = actor_display_names(actors)
     if not names:
@@ -63,7 +69,7 @@ def build_actor_caption_prompt(bucket_prompt: str, actors: List[Dict[str, Any]])
     return header + base
 
 
-def enforce_actor_names_in_caption(caption: str, actors: List[Dict[str, Any]]) -> str:
+def enforce_actor_names_in_caption(caption: str, actors: List[ActorRef]) -> str:
     """Replace generic people phrases with tagged display names."""
     names = actor_display_names(actors)
     if not caption or not names:

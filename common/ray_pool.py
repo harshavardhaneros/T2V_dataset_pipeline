@@ -88,28 +88,34 @@ def parallel_map(
     items: List[T],
     *,
     label: str = "tasks",
+    workers: Optional[int] = None,
+    min_items: Optional[int] = None,
 ) -> List[R]:
     """Run func on each item in parallel when worthwhile (Ray or processes)."""
     if not items:
         return []
 
     rc = ray_settings(config)
-    min_items = int(rc.get("parallel_clip_min", 4))
-    if len(items) < min_items:
+    clip_min = int(min_items if min_items is not None else rc.get("parallel_clip_min", 4))
+    if len(items) < clip_min:
         return [func(item) for item in items]
 
     chunk_size = int(rc.get("chunk_size", 64))
-    workers = int(rc.get("num_workers") or rc.get("num_cpus") or (os.cpu_count() or 4))
+    if workers is None:
+        workers = int(rc.get("num_workers") or rc.get("num_cpus") or (os.cpu_count() or 4))
     workers = max(1, min(workers, len(items)))
 
     if init_ray(config):
         import ray
 
+        from common.progress import progress_enabled, ray_get_progress
+
         remote = ray.remote(func)
-        results: List[R] = []
-        for start in range(0, len(items), chunk_size):
-            batch = items[start : start + chunk_size]
-            results.extend(ray.get([remote.remote(item) for item in batch]))
+        futures = [remote.remote(item) for item in items]
+        if progress_enabled() and len(futures) > 1:
+            results = ray_get_progress(futures, desc=label)
+        else:
+            results = list(ray.get(futures))
         logger.info("Ray parallel_map %s: %d items", label, len(items))
         return results
 
@@ -120,9 +126,20 @@ def parallel_map(
         len(items),
         workers,
     )
+    from common.progress import iter_progress, progress_enabled
+
+    chunksize = max(1, len(items) // (workers * 4))
     with ProcessPoolExecutor(
         max_workers=workers,
         initializer=_worker_init,
         initargs=(root,),
     ) as pool:
-        return list(pool.map(func, items, chunksize=max(1, len(items) // (workers * 4))))
+        if progress_enabled() and len(items) > 1:
+            return list(
+                iter_progress(
+                    pool.map(func, items, chunksize=chunksize),
+                    desc=label,
+                    total=len(items),
+                )
+            )
+        return list(pool.map(func, items, chunksize=chunksize))

@@ -29,6 +29,18 @@ def gpu_actor_count(config: Dict[str, Any], requested: List[int] | None = None) 
         return 1
 
 
+def ray_worker_count(
+    config: Dict[str, Any],
+    workers_key: str,
+    requested: List[int] | None = None,
+) -> int:
+    """Per-step GPU worker cap (e.g. verify_workers, actor_tag_workers)."""
+    rc = ray_settings(config)
+    if rc.get(workers_key):
+        return max(1, int(rc[workers_key]))
+    return gpu_actor_count(config, requested)
+
+
 def parallel_gpu_map(
     config: Dict[str, Any],
     actor_cls: Any,

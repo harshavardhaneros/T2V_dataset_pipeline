@@ -2,11 +2,17 @@
 # Verify GPU + deps + Qwen model before full pipeline run.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MODEL="${ROOT}/models/Qwen2.5-VL-32B-Instruct"
+MODEL="${ROOT}/../models/Qwen2.5-VL-7B-Instruct"
 YOLO="${ROOT}/../Master_Pipeline_t2i_dataset/actors/yolov12n-face.pt"
 
+# Use activated env python (conda run can fail on broken base cross-compiler toolchains).
+if [[ "${CONDA_DEFAULT_ENV:-}" != "indic_video_pipeline" ]]; then
+  source "$(conda info --base)/etc/profile.d/conda.sh"
+  conda activate indic_video_pipeline
+fi
+
 echo "=== Python / CUDA (indic_video_pipeline) ==="
-conda run -n indic_video_pipeline python <<PY
+python <<PY
 import sys
 errors = 0
 
@@ -24,7 +30,7 @@ try:
 except Exception as e:
     check(False, f"torch: {e}")
 
-for pkg in ("ultralytics", "insightface", "scenedetect", "transformers", "qwen_vl_utils"):
+for pkg in ("ray", "ultralytics", "insightface", "scenedetect", "transformers", "qwen_vl_utils"):
     try:
         __import__(pkg)
         check(True, pkg)
@@ -33,9 +39,11 @@ for pkg in ("ultralytics", "insightface", "scenedetect", "transformers", "qwen_v
 
 import os
 model = "${MODEL}"
-check(os.path.isfile(os.path.join(model, "config.json")), f"Qwen config at {model}")
-weights = [f for f in os.listdir(model) if f.endswith((".safetensors", ".bin"))]
-check(len(weights) > 0, f"Qwen weights ({len(weights)} shard files)")
+cfg = os.path.join(model, "config.json")
+check(os.path.isfile(cfg), f"Qwen-7B config at {model}")
+if os.path.isdir(model):
+    weights = [f for f in os.listdir(model) if f.endswith((".safetensors", ".bin"))]
+    check(len(weights) > 0, f"Qwen-7B weights ({len(weights)} shard files)")
 
 sys.exit(errors)
 PY

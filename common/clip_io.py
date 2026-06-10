@@ -112,20 +112,34 @@ def export_clip_mp4(
     if logo:
         vf_parts.append(logo)
 
-    cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-ss", f"{start:.3f}", "-i", str(source),
-        "-t", f"{duration:.3f}",
-    ]
-    if vf_parts:
-        cmd.extend(["-vf", ",".join(vf_parts)])
-    cmd.extend([
+    encode_tail = [
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
         "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart",
         str(out_path),
-    ])
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        return out_path.exists() and out_path.stat().st_size > 0
-    except subprocess.CalledProcessError:
-        return False
+    ]
+
+    vf_attempts: list[list[str]] = []
+    if vf_parts:
+        vf_attempts.append(vf_parts)
+        if len(vf_parts) > 1:
+            vf_attempts.append(vf_parts[:1])
+    vf_attempts.append([])
+
+    for attempt_vf in vf_attempts:
+        if out_path.exists():
+            out_path.unlink(missing_ok=True)
+        cmd = [
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-ss", f"{start:.3f}", "-i", str(source),
+            "-t", f"{duration:.3f}",
+        ]
+        if attempt_vf:
+            cmd.extend(["-vf", ",".join(attempt_vf)])
+        cmd.extend(encode_tail)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            if out_path.exists() and out_path.stat().st_size > 0:
+                return True
+        except subprocess.CalledProcessError:
+            continue
+    return False

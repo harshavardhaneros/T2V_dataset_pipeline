@@ -1,4 +1,14 @@
-# v3 two-GPU preset — use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1)
+# v3 eight-GPU preset — use with CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# Target: ~3–4 h for full 3-hour movies (~1000+ clips) with parallel s5/s6/s7/s8/s9.
+# Faster s5/s8: use pipeline_v3_vllm_8gpu.yaml (vLLM 2×TP=4 replicas).
+#
+# Run:
+#   CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 bash scripts/run_v3_8gpu.sh /path/to/movie.mp4 VIDEO_ID
+#
+# Resume (do not --force full pipeline):
+#   CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python run_pipeline.py \
+#     --config pipeline_v3_8gpu.yaml --video-id VIDEO_ID --from-step s8
+
 pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
 outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs
 models_root: /mnt/data0/harsha/new_dataset_pipeline/models
@@ -34,28 +44,31 @@ s6:
 
 ray:
   enabled: true
-  num_cpus: 16
-  num_gpus: 2
-  gpu_workers: 2
+  num_cpus: 32
+  num_gpus: 8
+  gpu_workers: 8
   parallel_clip_min: 2
   chunk_size: 32
-  parallel_frame_extract: true
+  # s2
   parallel_clip_export: true
   parallel_motion: true
-  motion_workers: 2
+  motion_workers: 8
   parallel_dover: true
-  dover_workers: 2
-  parallel_gpu_caption: true
-  parallel_gpu_classify: true
-  parallel_gpu_verify: true
-  verify_workers: 2
-  parallel_actor_tag: true
-  actor_tag_workers: 2
-  parallel_clip_score: true
-  clip_score_workers: 2
+  dover_workers: 8
   parallel_motion_gpu: true
   parallel_dover_gpu: true
-  frame_extract_workers: 8
+  # s5 / s8
+  parallel_gpu_caption: true
+  parallel_gpu_classify: true
+  # s6 / s7 / s9 (8-GPU extras)
+  parallel_gpu_verify: true
+  verify_workers: 8
+  parallel_actor_tag: true
+  actor_tag_workers: 8
+  frame_extract_workers: 16
+  parallel_frame_extract: true
+  parallel_clip_score: true
+  clip_score_workers: 4
 
 models_overrides:
   unimatch:
@@ -64,22 +77,22 @@ models_overrides:
     device: cuda:0
   clip_model:
     use_placeholder: false
-    gpu_ids: [0, 1]
+    gpu_ids: [0, 1, 2, 3]
   qwen_video_caption:
-    gpu_ids: [0, 1]
+    gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
     max_tokens: 1000
     video_fps: 1.5
     max_pixels: 201600
   gemma:
     model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
     model_name: Gemma-3-4B-IT
-    gpu_ids: [0, 1]
+    gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
     max_new_tokens: 128
 
 captioner:
   backend: qwen_video
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
-  gpu_ids: [0, 1]
+  gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   batch_size: 1
   max_tokens: 1000
   video_fps: 1.5
@@ -114,10 +127,10 @@ master_pipeline:
   yolo_face_model: yolov12n-face.pt
   prompts_dir: prompts
   actor_similarity_threshold: 0.35
-  classify_gpu_ids: [0, 1]
-  verify_gpu_ids: [0, 1]
+  classify_gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  verify_gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   actor_tag_gpu_id: 0
-  clip_gpu_ids: [0, 1]
+  clip_gpu_ids: [0]
   caption_backend: transformers
   max_new_tokens: 128
   auto_download_yolo: true

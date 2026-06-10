@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.metadata_manager import MetadataManager
 
 
@@ -16,7 +17,7 @@ class BandRemovalService(BaseService):
     def process_movie(self) -> Dict[str, Any]:
         records = self.metadata.read_all()
         applied = 0
-        for rec in records:
+        for rec in iter_progress(records, desc="s3 band flag", unit="clip"):
             if self.should_skip_clip(rec):
                 continue
             if not rec.get("keep", True):

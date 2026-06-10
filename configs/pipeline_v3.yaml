@@ -29,9 +29,11 @@ ray:
   parallel_clip_min: 4
   chunk_size: 64
   parallel_frame_extract: true
-  parallel_vmaf: true
   parallel_clip_export: true
-  parallel_motion: false
+  parallel_motion: true
+  motion_workers: 2
+  parallel_dover: true
+  dover_workers: 2
 
 models_overrides:
   unimatch:

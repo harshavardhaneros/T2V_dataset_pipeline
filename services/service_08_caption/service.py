@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 from common.actor_caption import enforce_actor_names_in_caption
 from common.base_service import BaseService
+from common.progress import iter_progress, progress_batched
 from common.caption_text import caption_to_str
 from common.clip_io import extract_clip_frames
 from common.gemma_caption import (
@@ -118,8 +119,7 @@ class CaptionService(BaseService):
             batch_size = int(
                 self.config.get("models", {}).get("gemma_caption", {}).get("batch_size", 8)
             )
-            for start in range(0, len(to_caption), batch_size):
-                batch = to_caption[start : start + batch_size]
+            for batch in progress_batched(to_caption, batch_size, desc="s8 caption"):
                 raw_caps = captioner.caption_records(batch)
                 for (rec, _), raw in zip(batch, raw_caps):
                     gen_line = to_single_line_json(raw)
@@ -165,7 +165,7 @@ class CaptionService(BaseService):
         captioned = with_actors = captioned_limit = 0
 
         try:
-            for rec in records:
+            for rec in iter_progress(records, desc="s8 caption", unit="clip"):
                 if self.should_skip_clip(rec):
                     continue
                 if not self._should_caption(rec, caption_all):
@@ -249,6 +249,89 @@ class CaptionService(BaseService):
             "frames_per_clip": 3,
         }
 
+    def _process_vllm(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+        from common.qwen_vllm import QwenVLLMEngine
+        from common.vllm_caption import caption_clips_vllm
+
+        pcfg = self.config.get("pipeline", {}).get("captioner", {})
+        max_caption = self.config.get("_test", {}).get("max_clips")
+        prompt_version = pcfg.get("prompt_version", "qwen_vllm_eros_v1")
+        caption_all = bool(pcfg.get("caption_all_clips", True))
+        clips_dir = self.movie_dir / "clips"
+        frames_dir = self.movie_dir / "frames"
+        actor_frames_dir = self.movie_dir / "actor_frames"
+
+        to_caption: List[tuple[Dict[str, Any], Path]] = []
+        skipped = 0
+
+        if not self.movie_video:
+            raise FileNotFoundError(f"No movie video in {self.movie_dir}")
+
+        for rec in records:
+            if self.should_skip_clip(rec):
+                continue
+            if not self._should_caption(rec, caption_all):
+                rec["caption"] = ""
+                rec["generated_caption"] = ""
+                rec["caption_struct"] = {}
+                rec["prompt_version"] = ""
+                MetadataManager.mark_done(rec, self.service_id)
+                continue
+            if max_caption and len(to_caption) >= max_caption:
+                MetadataManager.mark_done(rec, self.service_id)
+                continue
+
+            clip_path = ensure_clip_mp4(
+                self.movie_video, rec, clips_dir, self.config
+            )
+            if not clip_path:
+                skipped += 1
+                MetadataManager.mark_done(rec, self.service_id)
+                continue
+            to_caption.append((rec, clip_path))
+
+        captioned = with_actors = 0
+        vllm_cfg = self.config.get("models", {}).get("vllm", {})
+        batch_size = int(vllm_cfg.get("batch_size", pcfg.get("batch_size", 16)))
+
+        engine = QwenVLLMEngine.acquire(self.config, stage="s8")
+        try:
+            for batch in progress_batched(to_caption, batch_size, desc="s8 caption"):
+                raw_caps = caption_clips_vllm(
+                    self.config,
+                    batch,
+                    frames_dir=frames_dir,
+                    actor_frames_dir=actor_frames_dir,
+                    engine=engine,
+                )
+                for (rec, _), raw in zip(batch, raw_caps):
+                    gen_line = to_single_line_json(raw)
+                    struct = parse_caption_json(raw)
+                    rec["generated_caption"] = gen_line
+                    rec["caption_struct"] = struct
+                    rec["caption"] = struct.get("short_description") or gen_line
+                    rec["prompt_version"] = prompt_version
+                    if rec.get("clip_actors"):
+                        with_actors += 1
+                    captioned += 1
+                    MetadataManager.mark_done(rec, self.service_id)
+        finally:
+            QwenVLLMEngine.release()
+
+        return {
+            "captioned": captioned,
+            "skipped_no_clip": skipped,
+            "captions_with_actor_names": with_actors,
+            "model": Path(vllm_cfg.get("model_path", pcfg.get("model_path", ""))).name
+            or "Qwen2.5-VL-7B-Instruct",
+            "gpus": vllm_cfg.get("gpu_ids", pcfg.get("gpu_ids", [0])),
+            "backend": "vllm",
+            "prompt_version": prompt_version,
+            "caption_all_clips": caption_all,
+            "input_mode": "vllm_multi_frame",
+            "batch_size": batch_size,
+        }
+
     def _process_qwen_video(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         pcfg = self.config.get("pipeline", {}).get("captioner", {})
         max_caption = self.config.get("_test", {}).get("max_clips")
@@ -297,8 +380,7 @@ class CaptionService(BaseService):
                 .get("qwen_video_caption", {})
                 .get("batch_size", pcfg.get("batch_size", 1))
             )
-            for start in range(0, len(to_caption), batch_size):
-                batch = to_caption[start : start + batch_size]
+            for batch in progress_batched(to_caption, batch_size, desc="s8 caption"):
                 raw_caps = captioner.caption_records(batch)
                 for (rec, _), raw in zip(batch, raw_caps):
                     gen_line = to_single_line_json(raw)
@@ -334,6 +416,10 @@ class CaptionService(BaseService):
         backend = self._backend()
         if backend == "gemma":
             stats = self._process_gemma(records)
+            self.metadata.write_all(records)
+            return stats
+        if backend == "vllm":
+            stats = self._process_vllm(records)
             self.metadata.write_all(records)
             return stats
         if backend == "qwen_video":

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress, ray_get_progress
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
 from common.metadata_manager import MetadataManager
 from common.paths import qwen_classify_model_path
@@ -27,7 +28,15 @@ class ClassifyService(BaseService):
             return [0.33, 0.66]
         return [0.25, 0.5, 0.75]
 
+    def _backend(self) -> str:
+        return str(self._s5_cfg().get("backend", "transformers")).lower()
+
+    def _use_vllm(self) -> bool:
+        return self._backend() == "vllm"
+
     def _use_ray(self) -> bool:
+        if self._use_vllm():
+            return False
         rc = self.config.get("pipeline", {}).get("ray", {})
         return bool(self._s5_cfg().get("parallel", rc.get("parallel_gpu_classify", False)))
 
@@ -65,7 +74,7 @@ class ClassifyService(BaseService):
             for i, payload in enumerate(payloads)
         ]
         try:
-            rows = ray.get(futures)
+            rows = ray_get_progress(futures, desc="s5 classify")
         finally:
             for actor in actors:
                 try:
@@ -78,7 +87,12 @@ class ClassifyService(BaseService):
         records = self.metadata.read_all()
         mp = self.config["pipeline"]["master_pipeline"]
         s5 = self._s5_cfg()
-        gpu_ids = resolve_gpu_ids([int(g) for g in mp.get("classify_gpu_ids", [0, 1])])
+        if self._use_vllm():
+            gpu_ids = resolve_gpu_ids(
+                [int(g) for g in s5.get("gpu_ids", mp.get("classify_gpu_ids", [0]))]
+            )
+        else:
+            gpu_ids = resolve_gpu_ids([int(g) for g in mp.get("classify_gpu_ids", [0, 1])])
         model_path = str(s5.get("classify_model_path") or qwen_classify_model_path(self.config))
 
         log_service_gpus(
@@ -86,7 +100,11 @@ class ClassifyService(BaseService):
             f"VLM classify — {s5.get('vote_frames', 1)} frame(s)",
             model_path,
             gpu_ids,
-            extra="Ray multi-GPU" if self._use_ray() and len(gpu_ids) > 1 else "",
+            extra=(
+                "vLLM batched"
+                if self._use_vllm()
+                else ("Ray multi-GPU" if self._use_ray() and len(gpu_ids) > 1 else "")
+            ),
         )
 
         prompt_mgr = self.config.get("_prompt_manager")
@@ -103,14 +121,26 @@ class ClassifyService(BaseService):
         classified = rejected = 0
         results_by_id: Dict[str, Dict[str, Any]] = {}
 
-        if self._use_ray() and len(gpu_ids) > 1 and len(targets) >= 2:
+        if self._use_vllm() and len(targets) >= 1:
+            from common.vllm_classify import classify_clips_vllm
+
+            clips_dir = self.movie_dir / "clips"
+            results_by_id = classify_clips_vllm(
+                self.config,
+                targets,
+                valid_buckets,
+                video_path=str(self.movie_video) if self.movie_video else "",
+                clips_dir=clips_dir,
+                fractions=self._vote_fractions(),
+            )
+        elif self._use_ray() and len(gpu_ids) > 1 and len(targets) >= 2:
             results_by_id = self._classify_ray(targets, valid_buckets)
 
         worker: QwenClassifyWorker | None = None
         if not results_by_id:
             worker = QwenClassifyWorker(self.config, device=f"cuda:{gpu_ids[0]}")
             fractions = self._vote_fractions()
-            for rec in targets:
+            for rec in iter_progress(targets, desc="s5 classify", unit="clip"):
                 row = worker.classify_clip({
                     "record": rec,
                     "config": self.config,
@@ -120,7 +150,7 @@ class ClassifyService(BaseService):
                 })
                 results_by_id[rec["clip_id"]] = row
 
-        for rec in records:
+        for rec in iter_progress(records, desc="s5 apply", unit="clip"):
             if self.should_skip_clip(rec):
                 continue
             if not rec.get("keep", True):
@@ -149,4 +179,5 @@ class ClassifyService(BaseService):
             "gpus": gpu_ids,
             "vote_frames": len(self._vote_fractions()),
             "parallel_ray": bool(results_by_id) and self._use_ray(),
+            "backend": self._backend(),
         }

@@ -190,6 +190,34 @@ def tag_actor_frames(
         )
 
 
+def warm_actor_tagger(cfg: Dict[str, Any]) -> None:
+    """Pre-load YOLO + InsightFace once per process (Ray actor startup)."""
+    yolo_rel = cfg.get("yolo_face_model", "yolov12n-face.pt")
+    yolo_path = Path(yolo_rel)
+    if not yolo_path.is_absolute():
+        models_root = Path(cfg.get("models_root", ""))
+        if models_root and (models_root / yolo_rel).exists():
+            yolo_path = models_root / yolo_rel
+        else:
+            yolo_path = resolve_master_path(f"actors/{yolo_rel}")
+    yolo_path = ensure_yolo_face_model(yolo_path)
+    embeddings_dir = resolve_master_path(
+        cfg.get("actor_embeddings_dir", "actors/actor_embeddings")
+    )
+    gpu_id = int(cfg.get("actor_tag_gpu_id", 0))
+    threshold = float(cfg.get("actor_similarity_threshold", 0.35))
+
+    with master_import_context():
+        from actor_tagger import warm_session
+
+        warm_session(
+            actor_embeddings_dir=embeddings_dir,
+            yolo_model_path=yolo_path,
+            gpu_id=gpu_id,
+            similarity_threshold=threshold,
+        )
+
+
 def load_master_prompts(prompt_dir: Path) -> Dict[str, str]:
     with master_import_context():
         from captioner import load_prompts

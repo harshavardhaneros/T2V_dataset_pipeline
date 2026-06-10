@@ -1,4 +1,4 @@
-"""Efficient sequential frame reads (avoid per-frame seek)."""
+"""Efficient frame reads with direct timestamp seek."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def read_frames_at_times(
     crop_box: str = "",
     resize: Optional[Tuple[int, int]] = None,
 ) -> List[np.ndarray]:
-    """Read frames at given timestamps in one forward pass through the video."""
+    """Read frames at given timestamps; seeks directly per timestamp (fast on long files)."""
     if not times_sec:
         return []
 
@@ -26,27 +26,24 @@ def read_frames_at_times(
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     crop = parse_crop_box(crop_box)
-    indexed = sorted(enumerate(times_sec), key=lambda x: x[1])
-    out: List[Optional[np.ndarray]] = [None] * len(times_sec)
-    frame_idx = 0
+    out: List[np.ndarray] = []
 
-    for orig_i, t in indexed:
-        target = max(0, int(t * fps))
-        while frame_idx < target:
-            if not cap.grab():
-                break
-            frame_idx += 1
+    for t in times_sec:
+        # Direct seek — avoids scanning from t=0 on 30+ min sources.
+        cap.set(cv2.CAP_PROP_POS_MSEC, max(0.0, float(t)) * 1000.0)
         ok, frame = cap.read()
         if not ok:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, int(float(t) * fps)))
+            ok, frame = cap.read()
+        if not ok:
             continue
-        frame_idx += 1
         if crop:
             cw, ch, cx, cy = crop
             frame = frame[cy : cy + ch, cx : cx + cw]
         if resize:
             w, h = resize
             frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
-        out[orig_i] = frame
+        out.append(frame)
 
     cap.release()
-    return [f for f in out if f is not None]
+    return out

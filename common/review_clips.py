@@ -12,9 +12,18 @@ def link_clip_under_export(export_dir: Path, clip_src: Path, *, subdir: str = "c
     dest_dir = export_dir / subdir
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / clip_src.name
-    if dest.exists() or dest.is_symlink():
-        return dest
-    if not clip_src.exists():
+    if dest.is_symlink() or dest.exists():
+        try:
+            if dest.is_symlink():
+                target = dest.resolve()
+                if target.exists() and target.stat().st_size > 0:
+                    return dest
+            elif dest.stat().st_size > 0:
+                return dest
+        except OSError:
+            pass
+        dest.unlink(missing_ok=True)
+    if not clip_src.exists() or clip_src.stat().st_size == 0:
         return dest
     try:
         dest.symlink_to(clip_src.resolve())

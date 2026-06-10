@@ -11,6 +11,7 @@ import yaml
 
 from common.metadata_manager import MetadataManager
 from common.paths import service_log_dir
+from common.progress import service_banner
 from common.runtime_tracker import RuntimeTracker
 from common.video_files import find_movie_video
 
@@ -87,6 +88,7 @@ class BaseService(ABC):
             self._log_dir(),
         )
         tracker.start_timer()
+        service_banner(self.service_id, self.service_name)
         try:
             stats = self.process_movie()
             elapsed = tracker.stop_timer()

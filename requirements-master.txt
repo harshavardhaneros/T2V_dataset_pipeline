@@ -9,8 +9,8 @@ accelerate>=0.34.0
 qwen-vl-utils>=0.0.8
 pillow>=10.0.0
 
-# Optional: vLLM caption backend (10-15x faster, multi-GPU)
-# vllm>=0.6.0
+# Optional: vLLM batched s5/s8 (install via scripts/install_vllm.sh)
+# vllm>=0.8.0
 
 # Optional: flash attention for transformers backend
 # pip install flash-attn --no-build-isolation

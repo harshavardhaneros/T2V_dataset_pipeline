@@ -12,6 +12,9 @@ import numpy as np
 from common.ffmpeg_utils import parse_crop_box
 
 
+_UNIMATCH_CACHE: Dict[str, Any] = {}
+
+
 def _sample_times(start_sec: float, end_sec: float, interval_sec: float) -> List[float]:
     times: List[float] = []
     t = start_sec
@@ -63,17 +66,27 @@ def _normalize_score(raw: float, scale: float = 8.0) -> float:
     return float(max(0.0, min(1.0, raw / scale)))
 
 
-def _try_unimatch_repo(
-    frames: List[np.ndarray],
-    config: Dict[str, Any],
-) -> Optional[float]:
-    cfg = config.get("unimatch", {})
+def _cache_key(cfg: Dict[str, Any]) -> str:
+    device = str(cfg.get("device", "cuda"))
+    ckpt = str(cfg.get("checkpoint", ""))
+    repo = str(cfg.get("repo_path", ""))
+    return f"{repo}|{ckpt}|{device}"
+
+
+def _get_unimatch_model(cfg: Dict[str, Any]) -> Optional[Any]:
+    """Load UniMatch once per process; reused across all clips."""
     repo_path = cfg.get("repo_path")
-    if not repo_path:
+    ckpt = cfg.get("checkpoint")
+    if not repo_path or not ckpt:
         return None
     root = Path(repo_path)
-    if not root.exists():
+    if not root.exists() or not Path(ckpt).exists():
         return None
+
+    key = _cache_key(cfg)
+    if key in _UNIMATCH_CACHE:
+        return _UNIMATCH_CACHE[key]
+
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
     try:
@@ -81,9 +94,6 @@ def _try_unimatch_repo(
         from unimatch.unimatch import UniMatch  # type: ignore
 
         device = cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu")
-        ckpt = cfg.get("checkpoint")
-        if not ckpt or not Path(ckpt).exists():
-            return None
         model = UniMatch(
             feature_channels=128,
             num_scales=2,
@@ -97,7 +107,22 @@ def _try_unimatch_repo(
         state = torch.load(ckpt, map_location=device)
         model.load_state_dict(state["model"] if "model" in state else state)
         model.eval()
+        _UNIMATCH_CACHE[key] = (model, device, torch)
+        return _UNIMATCH_CACHE[key]
+    except Exception:
+        return None
 
+
+def _try_unimatch_repo(
+    frames: List[np.ndarray],
+    config: Dict[str, Any],
+) -> Optional[float]:
+    cfg = config.get("unimatch", {})
+    loaded = _get_unimatch_model(cfg)
+    if loaded is None:
+        return None
+    model, device, torch = loaded
+    try:
         mags: List[float] = []
         with torch.no_grad():
             for i in range(len(frames) - 1):
@@ -105,7 +130,15 @@ def _try_unimatch_repo(
                 img1 = torch.from_numpy(frames[i + 1][:, :, ::-1]).permute(2, 0, 1).float()[None] / 255.0
                 img0 = img0.to(device)
                 img1 = img1.to(device)
-                pred = model(img0, img1, attn_type="swin", attn_splits_list=[2], corr_radius_list=[-1], prop_radius_list=[-1], num_reg_refine=1)
+                pred = model(
+                    img0,
+                    img1,
+                    attn_type="swin",
+                    attn_splits_list=[2],
+                    corr_radius_list=[-1],
+                    prop_radius_list=[-1],
+                    num_reg_refine=1,
+                )
                 flow = pred["flow_preds"][-1][0].detach().cpu().numpy()
                 mags.append(float(np.mean(np.sqrt(flow[0] ** 2 + flow[1] ** 2))))
         if not mags:

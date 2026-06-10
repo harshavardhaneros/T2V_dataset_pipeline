@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
+from common.progress import iter_progress
 from common.metadata_manager import MetadataManager
 
 
@@ -20,7 +21,7 @@ class GateService(BaseService):
         review_below = float(gate.get("review_below", 0.18))
 
         counts = {"DISCARD": 0, "REVIEW": 0, "FINAL": 0}
-        for rec in records:
+        for rec in iter_progress(records, desc="s10 gate", unit="clip"):
             if self.should_skip_clip(rec):
                 continue
             if not rec.get("keep", True) or rec.get("reject"):

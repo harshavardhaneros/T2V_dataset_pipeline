@@ -1,4 +1,16 @@
-# v3 two-GPU preset — use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1)
+# v3 eight-GPU + vLLM — batched s5/s8 on 2×TP=4 replicas; Ray parallel s6/s7/s9.
+# Qwen2.5-VL-7B has 28 attention heads → max TP is 4 or 7 (we use TP=4 × 2 replicas).
+#
+# Install once:
+#   bash scripts/install_vllm.sh
+#
+# Run:
+#   CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 bash scripts/run_v3_vllm_8gpu.sh /path/to/movie.mp4 VIDEO_ID
+#
+# Re-caption only:
+#   CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python run_pipeline.py --config pipeline_v3_vllm_8gpu.yaml \
+#     --video-id VIDEO_ID --from-step s8 --to-step s11 --force
+
 pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
 outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs
 models_root: /mnt/data0/harsha/new_dataset_pipeline/models
@@ -18,75 +30,80 @@ export:
     - FINAL
     - REVIEW
   export_clips: true
-  remove_watermark: true
+  remove_watermark: false
 
 s2:
   mode: score_only
 
 s5:
+  backend: vllm
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   vote_frames: 1
   max_tokens: 128
-  parallel: true
+  gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  parallel: false
 
 s6:
   mode: vlm
 
 ray:
   enabled: true
-  num_cpus: 16
-  num_gpus: 2
-  gpu_workers: 2
+  num_cpus: 32
+  num_gpus: 8
+  gpu_workers: 8
   parallel_clip_min: 2
   chunk_size: 32
-  parallel_frame_extract: true
+  # s2
   parallel_clip_export: true
   parallel_motion: true
-  motion_workers: 2
+  motion_workers: 8
   parallel_dover: true
-  dover_workers: 2
-  parallel_gpu_caption: true
-  parallel_gpu_classify: true
-  parallel_gpu_verify: true
-  verify_workers: 2
-  parallel_actor_tag: true
-  actor_tag_workers: 2
-  parallel_clip_score: true
-  clip_score_workers: 2
+  dover_workers: 8
   parallel_motion_gpu: true
   parallel_dover_gpu: true
-  frame_extract_workers: 8
+  # s5 / s8 — vLLM handles batching (disable Ray Qwen workers)
+  parallel_gpu_classify: false
+  parallel_gpu_caption: false
+  # s6 / s7 / s9 — keep 8-GPU Ray parallelism
+  parallel_gpu_verify: true
+  verify_workers: 8
+  parallel_actor_tag: true
+  actor_tag_workers: 8
+  frame_extract_workers: 16
+  parallel_frame_extract: true
+  parallel_clip_score: true
+  clip_score_workers: 4
 
 models_overrides:
+  vllm:
+    batch_size: 24
+    max_tokens: 1000
+    max_model_len: 8192
+    max_images_per_prompt: 3
+    gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+    tensor_parallel_size: 4
   unimatch:
     device: cuda:0
   dover:
     device: cuda:0
   clip_model:
     use_placeholder: false
-    gpu_ids: [0, 1]
-  qwen_video_caption:
-    gpu_ids: [0, 1]
-    max_tokens: 1000
-    video_fps: 1.5
-    max_pixels: 201600
+    gpu_ids: [0, 1, 2, 3]
   gemma:
     model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
     model_name: Gemma-3-4B-IT
-    gpu_ids: [0, 1]
+    gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
     max_new_tokens: 128
 
 captioner:
-  backend: qwen_video
+  backend: vllm
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
-  gpu_ids: [0, 1]
-  batch_size: 1
+  gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  batch_size: 24
   max_tokens: 1000
-  video_fps: 1.5
-  max_pixels: 201600
   multi_frame: true
   caption_all_clips: true
-  prompt_version: qwen_video_eros_v1
+  prompt_version: qwen_vllm_eros_v1
 
 services_order:
   - s1
@@ -114,10 +131,9 @@ master_pipeline:
   yolo_face_model: yolov12n-face.pt
   prompts_dir: prompts
   actor_similarity_threshold: 0.35
-  classify_gpu_ids: [0, 1]
-  verify_gpu_ids: [0, 1]
+  classify_gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  verify_gpu_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   actor_tag_gpu_id: 0
-  clip_gpu_ids: [0, 1]
-  caption_backend: transformers
+  caption_backend: vllm
   max_new_tokens: 128
   auto_download_yolo: true

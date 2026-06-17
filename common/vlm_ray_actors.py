@@ -37,28 +37,12 @@ if ray is not None:
 
         def caption(self, payload: Dict[str, Any]) -> Dict[str, Any]:
             from common.qwen_video_caption import build_video_caption_prompt
-            from common.gemma_caption import parse_caption_json, to_single_line_json
-            from common.actor_caption import enforce_actor_names_in_caption
-            from common.screen_position import known_actor_names
 
             rec = payload["record"]
             clip_path = Path(payload["clip_path"])
             try:
                 prompt = build_video_caption_prompt(rec, payload["config"])
                 raw = self._worker.caption_video(clip_path, prompt)
-                actors = rec.get("clip_actors") or known_actor_names(
-                    rec.get("actors") or []
-                )
-                if actors:
-                    struct = parse_caption_json(raw)
-                    short = struct.get("short_description", "")
-                    if short:
-                        struct["short_description"] = enforce_actor_names_in_caption(
-                            short, actors
-                        )
-                        raw = to_single_line_json(
-                            json.dumps(struct, ensure_ascii=False)
-                        )
                 return {"clip_id": rec["clip_id"], "raw": raw, "ok": True}
             except Exception as exc:
                 return {"clip_id": rec["clip_id"], "raw": "", "ok": False, "error": str(exc)}

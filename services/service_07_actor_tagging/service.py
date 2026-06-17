@@ -10,13 +10,14 @@ from common.base_service import BaseService
 from common.progress import iter_progress, ray_get_progress
 from common.clip_io import clip_frame_path, extract_clip_frames
 from common.clip_workers import extract_clip_frames_job
+from common.actor_caption import finalize_actor_status
 from common.gemma_caption import enrich_record_actor_fields
 from common.gpu_actor_pool import ray_worker_count
 from common.gpu_info import log_service_gpus
 from common.master_bridge import init_master, tag_actor_frames
 from common.metadata_manager import MetadataManager
 from common.paths import models_root, yolo_face_model_path
-from common.ray_pool import init_ray, parallel_map, ray_settings
+from common.ray_pool import init_ray, parallel_map, ray_settings, shutdown_ray
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class ActorTaggingService(BaseService):
     service_name = "s7_actor_tagging"
     owned_fields = [
         "actor_status", "actors", "clip_actors",
+        "actor_tag_min_similarity", "actor_tag_min_margin",
         "actors_f1", "actors_f2", "actors_f3",
         "pos_f1", "pos_f2", "pos_f3",
         "frame1", "frame2", "frame3",
@@ -228,7 +230,7 @@ class ActorTaggingService(BaseService):
                     "frame_map": {k: str(v) for k, v in frame_map.items()},
                 }
 
-        tagged = no_match = 0
+        tagged = no_match = low_confidence = 0
         for rec in iter_progress(to_tag, desc="s7 apply tags", unit="clip"):
             row = tag_rows.get(rec["clip_id"], {})
             frame_assignments = row.get("frame_assignments", {})
@@ -237,19 +239,23 @@ class ActorTaggingService(BaseService):
             } or clip_frame_map.get(rec["clip_id"], {})
 
             enrich_record_actor_fields(rec, frame_assignments, frame_map)
-            if rec.get("clip_actors"):
-                rec["actor_status"] = "tagged"
+            finalize_actor_status(rec, master_cfg)
+            status = rec.get("actor_status")
+            if status == "tagged":
                 tagged += 1
+            elif status == "low_confidence":
+                low_confidence += 1
             else:
-                rec["actor_status"] = "no_match"
                 no_match += 1
             MetadataManager.mark_done(rec, self.service_id)
 
+        shutdown_ray(self.config)
         self.metadata.write_all(records)
         return {
             "people_clips": len(to_tag),
             "frames_extracted": frames_extracted or len(all_image_paths),
             "tagged": tagged,
+            "low_confidence": low_confidence,
             "no_match": no_match,
             "frames_per_clip": len(tag_indices),
             "tag_frame_indices": tag_indices,

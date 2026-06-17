@@ -80,9 +80,16 @@ def qwen_classify_model_path(config: Dict[str, Any]) -> Path:
 
 
 def qwen_video_model_path(config: Dict[str, Any]) -> Path:
-    """Resolve Qwen2.5-VL weights for native video captioning (prefers 7B if present)."""
-    qc = config.get("models", {}).get("qwen_video_caption", {})
+    """Resolve Qwen-VL weights for vLLM / native video captioning."""
+    from common.caption_models import resolve_caption_model
+
     pcfg = config.get("pipeline", {}).get("captioner", {})
+    if pcfg.get("caption_model") or pcfg.get("model_path"):
+        resolved = resolve_caption_model(config)
+        if resolved["family"] == "qwen":
+            return resolved["model_path"]
+
+    qc = config.get("models", {}).get("qwen_video_caption", {})
     explicit = qc.get("model_path") or pcfg.get("model_path")
     if explicit:
         return Path(explicit)
@@ -90,6 +97,7 @@ def qwen_video_model_path(config: Dict[str, Any]) -> Path:
     for name in (
         "Qwen2.5-VL-7B-Instruct",
         "Qwen2.5-VL-3B-Instruct",
+        "Qwen3-VL-32B-Instruct",
         "Qwen2.5-VL-32B-Instruct",
     ):
         candidate = root / name

@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from common.actor_caption import enforce_actor_names_in_caption
 from common.gemma_caption import (
-    parse_caption_json,
     pick_caption_frames,
-    to_single_line_json,
 )
 from common.qwen_video_caption import build_video_caption_prompt
 from common.qwen_vllm import QwenVLLMEngine
-from common.screen_position import known_actor_names
 
 
 def _images_for_clip(
@@ -86,12 +81,5 @@ def caption_clips_vllm(
 
     results: List[str] = []
     for rec, raw in zip(order, raws):
-        actors = rec.get("clip_actors") or known_actor_names(rec.get("actors") or [])
-        if actors and raw:
-            struct = parse_caption_json(raw)
-            short = struct.get("short_description", "")
-            if short:
-                struct["short_description"] = enforce_actor_names_in_caption(short, actors)
-                raw = to_single_line_json(json.dumps(struct, ensure_ascii=False))
-        results.append(raw)
+        results.append(raw or "")
     return results

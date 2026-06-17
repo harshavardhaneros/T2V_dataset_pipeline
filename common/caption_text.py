@@ -15,12 +15,13 @@ def caption_to_str(caption: Any) -> str:
         text = caption.strip()
         if text.startswith("{") and "short_description" in text:
             try:
-                import json
                 obj = json.loads(text)
                 if obj.get("short_description"):
                     return str(obj["short_description"]).strip()
             except json.JSONDecodeError:
-                pass
+                parsed = _loads_generated_caption(text)
+                if parsed and parsed.get("short_description"):
+                    return str(parsed["short_description"]).strip()
         return text
     if isinstance(caption, list):
         parts = [str(x).strip() for x in caption if x]
@@ -55,9 +56,30 @@ def _loads_generated_caption(text: str) -> dict[str, Any] | None:
     return None
 
 
+def prose_caption_for_export(rec: dict[str, Any]) -> str:
+    """Plain prose caption for export files — never structured JSON."""
+    struct = rec.get("caption_struct") or {}
+    if isinstance(struct, dict) and struct.get("_format") == "prose":
+        return caption_to_str(struct.get("short_description") or rec.get("caption"))
+
+    for field in ("caption", "generated_caption"):
+        text = caption_to_str(rec.get(field))
+        if text and not (text.startswith("{") and "short_description" in text):
+            return text
+
+    for field in ("caption", "generated_caption"):
+        parsed = _loads_generated_caption(rec.get(field) or "")
+        if parsed and parsed.get("short_description"):
+            return str(parsed["short_description"]).strip()
+
+    return caption_to_str(rec.get("caption"))
+
+
 def caption_for_review(rec: dict[str, Any]) -> str:
     """Full structured caption for HTML review (not just short_description)."""
     struct = rec.get("caption_struct") or {}
+    if isinstance(struct, dict) and struct.get("_format") == "prose":
+        return str(struct.get("short_description") or rec.get("caption") or "").strip()
     if isinstance(struct, dict) and struct and not struct.get("_parse_error"):
         return json.dumps(struct, indent=2, ensure_ascii=False)
 

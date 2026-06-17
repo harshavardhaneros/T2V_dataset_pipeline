@@ -27,10 +27,19 @@ echo "  GPUs:     ${CUDA_VISIBLE_DEVICES}"
 echo "  config:   pipeline_v3_vllm_2gpu.yaml"
 echo ""
 
+# Two phases avoid Ray (s6/s7) breaking the second vLLM load (s8) in one process.
 python run_pipeline.py \
   --config pipeline_v3_vllm_2gpu.yaml \
   --movie "${MOVIE}" \
   --video-id "${VIDEO_ID}" \
+  --from-step s1 --to-step s7 \
+  --force
+
+python run_pipeline.py \
+  --config pipeline_v3_vllm_2gpu.yaml \
+  --movie "${MOVIE}" \
+  --video-id "${VIDEO_ID}" \
+  --from-step s8 --to-step s12 \
   --force
 
 echo ""

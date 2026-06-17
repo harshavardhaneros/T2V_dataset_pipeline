@@ -25,6 +25,7 @@ def configure_vllm_env() -> None:
     os.environ.setdefault("VLLM_ATTENTION_BACKEND", "XFORMERS")
     # TP worker subprocesses must rendezvous on loopback (node IP often unreachable).
     os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
+    os.environ.setdefault("VLLM_HOST_IP", "127.0.0.1")
     os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
 
@@ -41,16 +42,76 @@ def _fresh_master_port() -> None:
         os.environ["MASTER_PORT"] = str(sock.getsockname()[1])
 
 
-def _shutdown_ray_before_vllm() -> None:
-    """Ray (s6/s7) and vLLM multiprocessing conflict if Ray stays initialized."""
+_ORIGINAL_CUDA_VISIBLE_DEVICES: Optional[str] = None
+
+
+def _remember_cuda_visible_devices() -> None:
+    """Save launcher GPU mask before Ray steps can clobber it."""
+    global _ORIGINAL_CUDA_VISIBLE_DEVICES
+    if _ORIGINAL_CUDA_VISIBLE_DEVICES is None:
+        _ORIGINAL_CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES")
+
+
+def _restore_cuda_visible_devices() -> None:
+    """Ray driver processes may rewrite CUDA_VISIBLE_DEVICES (e.g. to '0')."""
+    if _ORIGINAL_CUDA_VISIBLE_DEVICES is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = _ORIGINAL_CUDA_VISIBLE_DEVICES
+
+
+def _restore_distributed_env_for_vllm() -> None:
+    """Ray/torch.distributed can leave a stale node IP as MASTER_ADDR."""
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["VLLM_HOST_IP"] = "127.0.0.1"
+    _fresh_master_port()
+    for key in (
+        "RANK",
+        "WORLD_SIZE",
+        "LOCAL_RANK",
+        "GROUP_RANK",
+        "ROLE_RANK",
+        "ROLE_NAME",
+        "LOCAL_WORLD_SIZE",
+    ):
+        os.environ.pop(key, None)
+
+
+def _cleanup_vllm_runtime() -> None:
+    import time
+    import torch
+
+    try:
+        import torch.distributed as dist
+
+        if dist.is_available() and dist.is_initialized():
+            dist.destroy_process_group()
+    except Exception:
+        pass
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+    _restore_distributed_env_for_vllm()
+    time.sleep(3)
+
+
+def shutdown_ray_after_service() -> None:
+    """Tear down pipeline Ray and restore GPU visibility for vLLM TP."""
+    _remember_cuda_visible_devices()
     try:
         import ray
 
         if ray.is_initialized():
-            logger.info("Shutting down Ray before vLLM engine init")
+            logger.info("Shutting down Ray after service")
             ray.shutdown()
     except ImportError:
         pass
+    _restore_cuda_visible_devices()
+    _restore_distributed_env_for_vllm()
+
+
+def _shutdown_ray_before_vllm() -> None:
+    """Ray (s6/s7) and vLLM multiprocessing conflict if Ray stays initialized."""
+    shutdown_ray_after_service()
 
 
 def _split_gpu_groups(gpu_ids: List[int], tensor_parallel_size: int) -> List[List[int]]:
@@ -97,6 +158,7 @@ class _VLLMReplica:
                 "PyTorch driver mismatch — run: bash scripts/install_vllm.sh"
             )
 
+        _restore_distributed_env_for_vllm()
         _fresh_master_port()
         self._processor = AutoProcessor.from_pretrained(self.model_path)
         self._llm = LLM(
@@ -107,6 +169,7 @@ class _VLLMReplica:
             max_model_len=self.max_model_len,
             limit_mm_per_prompt={"image": self.max_images},
             enforce_eager=True,
+            distributed_executor_backend="mp",
         )
         logger.info(
             "vLLM replica %d ready on GPUs %s",
@@ -169,9 +232,6 @@ class _VLLMReplica:
         return results
 
     def cleanup(self) -> None:
-        import time
-        import torch
-
         llm = self._llm
         self._llm = None
         self._processor = None
@@ -183,11 +243,7 @@ class _VLLMReplica:
             except Exception as exc:
                 logger.warning("vLLM replica %d shutdown: %s", self.replica_id, exc)
             del llm
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
-        time.sleep(2)
+        _cleanup_vllm_runtime()
 
 
 class QwenVLLMEngine:
@@ -259,6 +315,7 @@ class QwenVLLMEngine:
         if self._replicas:
             return
         _shutdown_ray_before_vllm()
+        _restore_distributed_env_for_vllm()
         if not self._vllm_available():
             raise ImportError(
                 "vLLM is not installed. Run: bash scripts/install_vllm.sh"

@@ -11,7 +11,7 @@ from common.gemma_verify import GemmaVerifyService
 from common.gpu_actor_pool import ray_worker_count
 from common.gpu_info import log_service_gpus
 from common.metadata_manager import MetadataManager
-from common.ray_pool import init_ray, ray_settings
+from common.ray_pool import init_ray, ray_settings, shutdown_ray
 from common.vlm_service import clip_keyframe_images
 
 
@@ -194,6 +194,7 @@ class VerifyService(BaseService):
         finally:
             if gemma is not None:
                 gemma.cleanup()
+            shutdown_ray(self.config)
 
         return {
             "verified_clips": verified_count,

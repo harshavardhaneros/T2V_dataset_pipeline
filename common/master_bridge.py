@@ -176,6 +176,9 @@ def tag_actor_frames(
     )
     gpu_id = int(cfg.get("actor_tag_gpu_id", 0))
     threshold = float(cfg.get("actor_similarity_threshold", 0.35))
+    margin = float(cfg.get("actor_similarity_margin", 0.10))
+    cast_filter = cfg.get("actor_cast_filter") or None
+    actor_gender_map = cfg.get("actor_gender_map") or None
 
     with master_import_context():
         from actor_tagger import tag_frames
@@ -187,6 +190,9 @@ def tag_actor_frames(
             yolo_model_path=yolo_path,
             gpu_id=gpu_id,
             similarity_threshold=threshold,
+            similarity_margin=margin,
+            cast_filter=cast_filter,
+            actor_gender_map=actor_gender_map,
         )
 
 
@@ -206,6 +212,9 @@ def warm_actor_tagger(cfg: Dict[str, Any]) -> None:
     )
     gpu_id = int(cfg.get("actor_tag_gpu_id", 0))
     threshold = float(cfg.get("actor_similarity_threshold", 0.35))
+    margin = float(cfg.get("actor_similarity_margin", 0.10))
+    cast_filter = cfg.get("actor_cast_filter") or None
+    actor_gender_map = cfg.get("actor_gender_map") or None
 
     with master_import_context():
         from actor_tagger import warm_session
@@ -215,6 +224,9 @@ def warm_actor_tagger(cfg: Dict[str, Any]) -> None:
             yolo_model_path=yolo_path,
             gpu_id=gpu_id,
             similarity_threshold=threshold,
+            similarity_margin=margin,
+            cast_filter=cast_filter,
+            actor_gender_map=actor_gender_map,
         )
 
 

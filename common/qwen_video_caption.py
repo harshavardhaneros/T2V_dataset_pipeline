@@ -3,22 +3,17 @@
 from __future__ import annotations
 
 import gc
-import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from common.actor_caption import enforce_actor_names_in_caption
 from common.clip_io import export_clip_mp4, frame_offsets_for_record
 from common.gemma_caption import (
-    CAPTION_SYSTEM_PROMPT,
     build_caption_user_text,
-    parse_caption_json,
-    to_single_line_json,
+    get_caption_system_prompt,
 )
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
 from common.paths import qwen_video_model_path
-from common.screen_position import known_actor_names
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +47,7 @@ def build_video_caption_prompt(rec: Dict[str, Any], config: Dict[str, Any]) -> s
     user = build_caption_user_text(
         rec, multi_frame=True, frame_offsets=offsets
     )
-    return f"{CAPTION_SYSTEM_PROMPT}\n\n{user}"
+    return f"{get_caption_system_prompt(config)}\n\n{user}"
 
 
 class QwenVideoCaptionWorker:
@@ -219,19 +214,6 @@ class QwenVideoCaptionService:
             try:
                 prompt = build_video_caption_prompt(rec, self._config)
                 raw = self._worker.caption_video(clip_path, prompt)
-                actors = rec.get("clip_actors") or known_actor_names(
-                    rec.get("actors") or []
-                )
-                if actors:
-                    struct = parse_caption_json(raw)
-                    short = struct.get("short_description", "")
-                    if short:
-                        struct["short_description"] = enforce_actor_names_in_caption(
-                            short, actors
-                        )
-                        raw = to_single_line_json(
-                            json.dumps(struct, ensure_ascii=False)
-                        )
                 results.append(raw)
             except Exception as exc:
                 logger.warning("Video caption failed for %s: %s", rec.get("clip_id"), exc)

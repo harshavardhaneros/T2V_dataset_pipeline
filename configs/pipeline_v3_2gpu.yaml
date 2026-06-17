@@ -86,6 +86,7 @@ captioner:
   max_pixels: 201600
   multi_frame: true
   caption_all_clips: true
+  caption_format: prose
   prompt_version: qwen_video_eros_v1
 
 services_order:

@@ -372,6 +372,8 @@ def write_index_html(ws: Path, export_dir: Path, records: list[dict]) -> None:
     <small>2×2 paginated — FINAL clips with captions only</small></a>
   <a class="card" href="bucket_review.html">Bucket review
     <small>Grouped by bucket · 2×2 grid per bucket</small></a>
+  <a class="card" href="actor_caption_report.html">Actor vs caption
+    <small>Tagged clips · which captions use actor names · filterable</small></a>
 </div>
 
 <h2>Data files</h2>
@@ -427,8 +429,14 @@ def main() -> None:
         grid_rows=args.grid_rows,
     )
 
+    scripts = _ROOT / "scripts"
+    actor_report = scripts / "view_actor_caption_report.py"
+    if actor_report.exists():
+        cmd = [sys.executable, str(actor_report), "--workspace", str(ws)]
+        print("Running:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
+
     if not args.skip_subviews:
-        scripts = _ROOT / "scripts"
         for script, extra in (
             ("view_clip_review.py", ["--skip-export"]),
             ("view_bucket_review.py", []),

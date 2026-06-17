@@ -15,13 +15,14 @@ from PIL import Image
 
 from common.clip_io import frame_offsets_for_record
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
+from common.caption_models import caption_model_key, resolve_caption_model
 from common.paths import models_root
 from common.screen_position import frame_position_label, known_actor_names
 
 logger = logging.getLogger(__name__)
 
 # Matches eros_caption_video/pipeline.py CAPTION_SYSTEM_PROMPT + clip-level motion rules.
-CAPTION_SYSTEM_PROMPT = (
+CAPTION_JSON_SYSTEM_PROMPT = (
     "Output MUST be a valid JSON object only. No markdown or extra text.\n\n"
     "Rules:\n"
     "- Be precise and avoid repetition.\n"
@@ -59,10 +60,104 @@ CAPTION_SYSTEM_PROMPT = (
     "\"color\":\"\",\"font\":\"\",\"appearance_details\":\"\"}] }"
 )
 
+# Plain-text variant: same eros rules without JSON structure.
+CAPTION_PROSE_SYSTEM_PROMPT = (
+    "Write one rich paragraph describing this video clip. Plain text only — "
+    "no JSON, no markdown, no bullet lists, no headings.\n\n"
+    "Rules:\n"
+    "- Be precise and avoid repetition.\n"
+    "- No hallucination. Only visible or strongly implied details.\n"
+    "- Avoid generic phrases (e.g., \"a group of people\").\n"
+    "- For humans, describe from THEIR perspective (not the viewer's).\n"
+    "- Prioritise culturally significant visual elements when present.\n"
+    "- Include actor names and positions while explaining object actions.\n"
+    "- You are captioning a short VIDEO CLIP (not a single photograph).\n"
+    "- Use all provided sequential frames to infer motion, actions, and camera movement.\n"
+    "- Describe what happens over the full clip, including movement.\n\n"
+    "Indian Cultural Details (include ONLY if visible):\n"
+    "- attire: women: saree (silk/cotton), half-saree, salwar, blouse color/design,\n"
+    "  embroidery (Zardozi, Chikankari). men: veshti/dhoti, kurta, shirt, traditional wear\n"
+    "- accessories: jhumka, nose ring, choker, chain, bangles, anklets, kundan, bindi/sindoor\n"
+    "- regional_identity: Tamil, Punjabi, Bengali, etc. (ONLY if clearly inferable)\n"
+    "- cultural_context: temple, wedding, ritual, festival, street market, rural/urban India\n"
+    "- architecture_landmarks: gopuram, heritage buildings (if visible)\n"
+    "- food_elements: traditional dishes (if present)\n\n"
+    "Text: mention only clearly visible on-screen text.\n\n"
+    "Cover setting, lighting, mood, composition, camera angle/movement, and visible text "
+    "naturally within the paragraph."
+)
+
+# Backward-compatible alias (JSON is the default structured format).
+CAPTION_SYSTEM_PROMPT = CAPTION_JSON_SYSTEM_PROMPT
+
+
+def caption_format(config: Dict[str, Any]) -> str:
+    """Per-run caption output format: ``prose`` (default) or ``json``."""
+    raw = str(
+        config.get("pipeline", {}).get("captioner", {}).get("caption_format", "prose")
+    ).strip().lower()
+    if raw in {"prose", "plain", "text", "normal"}:
+        return "prose"
+    return "json"
+
+
+def get_caption_system_prompt(config: Dict[str, Any]) -> str:
+    if caption_format(config) == "prose":
+        return CAPTION_PROSE_SYSTEM_PROMPT
+    return CAPTION_JSON_SYSTEM_PROMPT
+
+
+def _strip_markdown_fences(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if len(lines) >= 2 and lines[-1].strip() == "```":
+            cleaned = "\n".join(lines[1:-1]).strip()
+        else:
+            cleaned = "\n".join(lines[1:]).strip()
+    return cleaned
+
+
+def normalize_caption_output(
+    raw: str,
+    rec: Dict[str, Any],
+    config: Dict[str, Any],
+) -> tuple[str, str, Dict[str, Any]]:
+    """Parse model output into (caption, generated_caption, caption_struct)."""
+    from common.actor_caption import enforce_actor_names_for_record
+
+    raw = (raw or "").strip()
+    if not raw:
+        return "", "", {}
+
+    if caption_format(config) == "prose":
+        text = _strip_markdown_fences(raw)
+        text = enforce_actor_names_for_record(text, rec, config)
+        return text, text, {"short_description": text, "_format": "prose"}
+
+    gen_line = to_single_line_json(raw)
+    struct = parse_caption_json(raw)
+    short = struct.get("short_description", "")
+    if short:
+        struct["short_description"] = enforce_actor_names_for_record(
+            short, rec, config
+        )
+        gen_line = json.dumps(struct, ensure_ascii=False)
+    caption = struct.get("short_description") or gen_line
+    struct.setdefault("_format", "json")
+    return caption, gen_line, struct
+
 
 def gemma_caption_model_path(config: Dict[str, Any]) -> Path:
-    cc = config.get("models", {}).get("gemma_caption", {})
+    from common.caption_models import resolve_caption_model
+
     pcfg = config.get("pipeline", {}).get("captioner", {})
+    if pcfg.get("caption_model") or pcfg.get("model_path"):
+        resolved = resolve_caption_model(config)
+        if resolved["family"] == "gemma":
+            return resolved["model_path"]
+
+    cc = config.get("models", {}).get("gemma_caption", {})
     path = cc.get("model_path") or pcfg.get("model_path")
     if path:
         return Path(path)
@@ -116,21 +211,35 @@ def build_caption_user_text(
     frame_offsets: Optional[List[float]] = None,
 ) -> str:
     """User prompt aligned with eros_caption_video/pipeline.py H200Captioner._build_messages."""
-    clip_actors = rec.get("clip_actors") or known_actor_names(rec.get("actors") or [])
-    lines = [
-        f"Actors present: {clip_actors}",
-        f"Frame 1: {rec.get('actors_f1', '[]')} | {rec.get('pos_f1', 'unknown')}",
-        f"Frame 2: {rec.get('actors_f2', '[]')} | {rec.get('pos_f2', 'unknown')}",
-    ]
+    from common.actor_caption import caption_eligible_actors
+
+    clip_actors = caption_eligible_actors(rec) or []
+    lines: List[str] = []
     if multi_frame:
         dur = _clip_duration_sec(rec)
         offsets = frame_offsets or [dur * 0.2, dur * 0.5, dur * 0.8]
         times = ", ".join(f"{t:.1f}s" for t in offsets[:3])
-        lines.insert(
-            0,
+        lines.append(
             f"The images are three sequential frames from one {dur:g}-second video clip "
-            f"(at {times}). Describe the full clip, including movement.",
+            f"(at {times}). Describe the full clip, including movement."
         )
+    if len(clip_actors) >= 2:
+        cast = " and ".join(clip_actors)
+        lines.append(
+            f"Identified cast in this clip: {cast}. "
+            "You must use each person's full name when describing them. "
+            "Never write 'the man', 'the woman', 'the other person', or 'two individuals'."
+        )
+    elif len(clip_actors) == 1:
+        lines.append(
+            f"Identified person: {clip_actors[0]}. "
+            "Use this full name once when describing them. "
+            "If other people are visible, call them 'another woman', 'another man', "
+            f"or 'another person' — never reuse {clip_actors[0]}'s name for anyone else. "
+            "Do not write 'the man', 'the woman', or 'a person' for the identified person."
+        )
+    else:
+        lines.append("Describe the people, setting, and action visible in the clip.")
     lines.append(
         "You are a Visual Art Director generating structured, "
         "high-quality captions for the video frames."
@@ -194,25 +303,51 @@ class GemmaCaptionService:
         if self._model is not None:
             return
         if not Path(self.model_path).joinpath("config.json").exists():
+            resolved = resolve_caption_model(self._config)
             raise FileNotFoundError(
                 f"Gemma caption model not found: {self.model_path}\n"
-                "Download: hf download google/gemma-3-4b-it --local-dir "
+                f"Download: hf download {resolved['hf_repo']} --local-dir "
                 f"{self.model_path}"
             )
+        fmt = caption_format(self._config)
+        model_key = caption_model_key(self._config)
+        resolved = resolve_caption_model(self._config)
         log_service_gpus(
             "s8",
-            "Gemma-3-4B-IT caption (eros-style JSON)",
+            f"{resolved['label']} caption (eros-style {fmt})",
             self.model_path,
             self.gpu_ids,
         )
         import torch
-        from transformers import AutoModelForImageTextToText, AutoProcessor
+        from transformers import AutoProcessor
+
+        from common.attn_backend import resolve_attn_implementation
 
         self._processor = AutoProcessor.from_pretrained(self.model_path)
-        self._model = AutoModelForImageTextToText.from_pretrained(
+        load_kwargs: dict = {
+            "dtype": torch.bfloat16,
+            "attn_implementation": resolve_attn_implementation(),
+        }
+        if model_key == "gemma4":
+            load_kwargs["device_map"] = "auto"
+            try:
+                from transformers import Gemma4ForConditionalGeneration
+
+                model_cls = Gemma4ForConditionalGeneration
+            except ImportError:
+                from transformers import AutoModelForImageTextToText
+
+                model_cls = AutoModelForImageTextToText
+                load_kwargs["device_map"] = self.device
+        else:
+            from transformers import AutoModelForImageTextToText
+
+            model_cls = AutoModelForImageTextToText
+            load_kwargs["device_map"] = self.device
+
+        self._model = model_cls.from_pretrained(
             self.model_path,
-            dtype=torch.bfloat16,
-            device_map=self.device,
+            **load_kwargs,
         ).eval()
 
     def _build_messages(
@@ -252,21 +387,34 @@ class GemmaCaptionService:
             ),
         })
         messages = [
-            {"role": "system", "content": [{"type": "text", "text": CAPTION_SYSTEM_PROMPT}]},
+            {
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": get_caption_system_prompt(self._config)}
+                ],
+            },
             {"role": "user", "content": content},
         ]
         return messages, images
 
+    def _model_device(self):
+        import torch
+
+        if caption_model_key(self._config) == "gemma4":
+            return next(self._model.parameters()).device
+        return torch.device(self.device)
+
     def _infer_single(self, messages: list) -> str:
         import torch
 
+        device = self._model_device()
         inputs = self._processor.apply_chat_template(
             messages,
             add_generation_prompt=True,
             tokenize=True,
             return_dict=True,
             return_tensors="pt",
-        ).to(self.device, dtype=torch.bfloat16)
+        ).to(device, dtype=torch.bfloat16)
         input_len = inputs["input_ids"].shape[-1]
         with torch.no_grad():
             gen_ids = self._model.generate(
@@ -360,12 +508,27 @@ def enrich_record_actor_fields(
             if n not in all_names:
                 all_names.append(n)
     rec["clip_actors"] = all_names
+
+    sims: List[float] = []
+    margins: List[float] = []
+    for idx in (1, 2, 3):
+        for actor in frame_assignments.get(idx, []):
+            if "similarity" in actor:
+                sims.append(float(actor["similarity"]))
+            if "similarity_margin" in actor:
+                margins.append(float(actor["similarity_margin"]))
+    rec["actor_tag_min_similarity"] = min(sims) if sims else 0.0
+    rec["actor_tag_min_margin"] = min(margins) if margins else 0.0
+
     rec["frame1"] = str(frame_paths.get(1, ""))
     rec["frame2"] = str(frame_paths.get(2, ""))
     rec["frame3"] = str(frame_paths.get(3, ""))
-    if frame_assignments.get(2):
-        rec["actors"] = frame_assignments[2]
-    elif frame_assignments.get(1):
-        rec["actors"] = frame_assignments[1]
-    else:
-        rec["actors"] = []
+    from common.actor_caption import best_faces_for_caption
+
+    frame_actors = (
+        frame_assignments.get(2)
+        or frame_assignments.get(1)
+        or frame_assignments.get(3)
+        or []
+    )
+    rec["actors"] = best_faces_for_caption(frame_actors)

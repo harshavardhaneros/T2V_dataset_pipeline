@@ -6,17 +6,18 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
-from common.actor_caption import enforce_actor_names_in_caption
+from common.caption_models import resolve_caption_model
+from common.actor_caption import caption_eligible_actors, enforce_actor_names_for_record
 from common.base_service import BaseService
 from common.progress import iter_progress, progress_batched
 from common.caption_text import caption_to_str
 from common.clip_io import extract_clip_frames
 from common.gemma_caption import (
     GemmaCaptionService,
-    parse_caption_json,
+    caption_format,
+    normalize_caption_output,
     pick_caption_frame,
     pick_caption_frames,
-    to_single_line_json,
 )
 from common.qwen_video_caption import (
     QwenVideoCaptionService,
@@ -42,12 +43,40 @@ class CaptionService(BaseService):
     owned_fields = ["caption", "caption_struct", "generated_caption", "prompt_version"]
 
     def _backend(self) -> str:
-        return self.config.get("pipeline", {}).get("captioner", {}).get("backend", "qwen")
+        pcfg = self.config.get("pipeline", {}).get("captioner", {})
+        if pcfg.get("caption_model") or (
+            pcfg.get("model_path") and not pcfg.get("backend")
+        ):
+            return resolve_caption_model(self.config)["backend"]
+        return pcfg.get("backend", "qwen")
+
+    def _resolved_caption_model(self) -> Dict[str, Any]:
+        return resolve_caption_model(self.config)
 
     def _should_caption(self, rec: Dict[str, Any], caption_all: bool) -> bool:
         if caption_all:
             return True
         return bool(rec.get("keep", True)) and not rec.get("reject")
+
+    def _store_caption(
+        self,
+        rec: Dict[str, Any],
+        raw: str,
+        prompt_version: str,
+    ) -> None:
+        caption, generated, struct = normalize_caption_output(
+            raw, rec, self.config
+        )
+        rec["caption"] = caption
+        rec["generated_caption"] = generated
+        rec["caption_struct"] = struct
+        rec["prompt_version"] = prompt_version
+
+    def _caption_prompt_version(self, base: str) -> str:
+        fmt = caption_format(self.config)
+        if fmt == "prose":
+            return f"{base}_prose"
+        return base
 
     def _ensure_caption_frames(
         self,
@@ -79,7 +108,9 @@ class CaptionService(BaseService):
         frames_dir = self.movie_dir / "frames"
         actor_frames_dir = self.movie_dir / "actor_frames"
         max_caption = self.config.get("_test", {}).get("max_clips")
-        prompt_version = pcfg.get("prompt_version", "eros_structured_v1")
+        prompt_version = self._caption_prompt_version(
+            pcfg.get("prompt_version", "eros_structured_v1")
+        )
         multi_frame = bool(pcfg.get("multi_frame", True))
         caption_all = bool(pcfg.get("caption_all_clips", True))
 
@@ -122,13 +153,8 @@ class CaptionService(BaseService):
             for batch in progress_batched(to_caption, batch_size, desc="s8 caption"):
                 raw_caps = captioner.caption_records(batch)
                 for (rec, _), raw in zip(batch, raw_caps):
-                    gen_line = to_single_line_json(raw)
-                    struct = parse_caption_json(raw)
-                    rec["generated_caption"] = gen_line
-                    rec["caption_struct"] = struct
-                    rec["caption"] = struct.get("short_description") or gen_line
-                    rec["prompt_version"] = prompt_version
-                    if rec.get("clip_actors"):
+                    self._store_caption(rec, raw, prompt_version)
+                    if caption_eligible_actors(rec):
                         with_actors += 1
                     captioned += 1
                     MetadataManager.mark_done(rec, self.service_id)
@@ -136,14 +162,17 @@ class CaptionService(BaseService):
             GemmaCaptionService.release()
 
         cc = self.config.get("models", {}).get("gemma_caption", {})
+        resolved = self._resolved_caption_model()
         return {
             "captioned": captioned,
             "skipped_no_frame": skipped,
             "captions_with_actor_names": with_actors,
-            "model": "Gemma-3-4B-IT",
+            "model": resolved["label"],
+            "caption_model": resolved["key"],
             "gpus": cc.get("gpu_ids", pcfg.get("gpu_ids", [0])),
             "backend": "gemma",
             "prompt_version": prompt_version,
+            "caption_format": caption_format(self.config),
             "caption_all_clips": caption_all,
             "frames_per_clip": 3 if multi_frame else 1,
         }
@@ -200,9 +229,10 @@ class CaptionService(BaseService):
                     bucket_prompt = ""
                     prompt_version = ""
 
-                actors = rec.get("actors") or []
+                eligible = caption_eligible_actors(rec)
+                actors = rec.get("actors") or [] if eligible else []
                 full_prompt = build_caption_prompt(bucket_prompt, actors)
-                if actors:
+                if eligible:
                     with_actors += 1
 
                 images = []
@@ -225,8 +255,10 @@ class CaptionService(BaseService):
                     data = {"caption": "", "tags": {}}
 
                 caption = caption_to_str(data.get("caption", ""))
-                if actors:
-                    caption = enforce_actor_names_in_caption(caption, actors)
+                if eligible:
+                    caption = enforce_actor_names_for_record(
+                        caption, rec, self.config
+                    )
                 rec["caption"] = caption
                 rec["generated_caption"] = caption
                 rec["caption_struct"] = {k: v for k, v in data.items() if k != "caption"}
@@ -255,7 +287,9 @@ class CaptionService(BaseService):
 
         pcfg = self.config.get("pipeline", {}).get("captioner", {})
         max_caption = self.config.get("_test", {}).get("max_clips")
-        prompt_version = pcfg.get("prompt_version", "qwen_vllm_eros_v1")
+        prompt_version = self._caption_prompt_version(
+            pcfg.get("prompt_version", "qwen_vllm_eros_v1")
+        )
         caption_all = bool(pcfg.get("caption_all_clips", True))
         clips_dir = self.movie_dir / "clips"
         frames_dir = self.movie_dir / "frames"
@@ -305,28 +339,25 @@ class CaptionService(BaseService):
                     engine=engine,
                 )
                 for (rec, _), raw in zip(batch, raw_caps):
-                    gen_line = to_single_line_json(raw)
-                    struct = parse_caption_json(raw)
-                    rec["generated_caption"] = gen_line
-                    rec["caption_struct"] = struct
-                    rec["caption"] = struct.get("short_description") or gen_line
-                    rec["prompt_version"] = prompt_version
-                    if rec.get("clip_actors"):
+                    self._store_caption(rec, raw, prompt_version)
+                    if caption_eligible_actors(rec):
                         with_actors += 1
                     captioned += 1
                     MetadataManager.mark_done(rec, self.service_id)
         finally:
             QwenVLLMEngine.release()
 
+        resolved = self._resolved_caption_model()
         return {
             "captioned": captioned,
             "skipped_no_clip": skipped,
             "captions_with_actor_names": with_actors,
-            "model": Path(vllm_cfg.get("model_path", pcfg.get("model_path", ""))).name
-            or "Qwen2.5-VL-7B-Instruct",
+            "model": resolved["label"],
+            "caption_model": resolved["key"],
             "gpus": vllm_cfg.get("gpu_ids", pcfg.get("gpu_ids", [0])),
             "backend": "vllm",
             "prompt_version": prompt_version,
+            "caption_format": caption_format(self.config),
             "caption_all_clips": caption_all,
             "input_mode": "vllm_multi_frame",
             "batch_size": batch_size,
@@ -335,7 +366,9 @@ class CaptionService(BaseService):
     def _process_qwen_video(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         pcfg = self.config.get("pipeline", {}).get("captioner", {})
         max_caption = self.config.get("_test", {}).get("max_clips")
-        prompt_version = pcfg.get("prompt_version", "qwen_video_eros_v1")
+        prompt_version = self._caption_prompt_version(
+            pcfg.get("prompt_version", "qwen_video_eros_v1")
+        )
         caption_all = bool(pcfg.get("caption_all_clips", True))
         clips_dir = self.movie_dir / "clips"
 
@@ -383,13 +416,8 @@ class CaptionService(BaseService):
             for batch in progress_batched(to_caption, batch_size, desc="s8 caption"):
                 raw_caps = captioner.caption_records(batch)
                 for (rec, _), raw in zip(batch, raw_caps):
-                    gen_line = to_single_line_json(raw)
-                    struct = parse_caption_json(raw)
-                    rec["generated_caption"] = gen_line
-                    rec["caption_struct"] = struct
-                    rec["caption"] = struct.get("short_description") or gen_line
-                    rec["prompt_version"] = prompt_version
-                    if rec.get("clip_actors"):
+                    self._store_caption(rec, raw, prompt_version)
+                    if caption_eligible_actors(rec):
                         with_actors += 1
                     captioned += 1
                     MetadataManager.mark_done(rec, self.service_id)
@@ -397,15 +425,17 @@ class CaptionService(BaseService):
             QwenVideoCaptionService.release()
 
         qc = self.config.get("models", {}).get("qwen_video_caption", {})
-        model_path = str(captioner.model_path)
+        resolved = self._resolved_caption_model()
         return {
             "captioned": captioned,
             "skipped_no_clip": skipped,
             "captions_with_actor_names": with_actors,
-            "model": Path(model_path).name,
+            "model": resolved["label"],
+            "caption_model": resolved["key"],
             "gpus": qc.get("gpu_ids", pcfg.get("gpu_ids", [0])),
             "backend": "qwen_video",
             "prompt_version": prompt_version,
+            "caption_format": caption_format(self.config),
             "caption_all_clips": caption_all,
             "video_fps": captioner.fps,
             "input_mode": "native_mp4",

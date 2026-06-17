@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 from common.base_service import BaseService
 from common.progress import iter_progress
-from common.caption_text import caption_to_str
+from common.caption_text import prose_caption_for_export
 from common.clip_io import export_clip_mp4
 from common.review_clips import link_clip_under_export
 from common.metadata_manager import MetadataManager
@@ -70,8 +70,7 @@ class ExportService(BaseService):
                     "source_video": rec["source_video"],
                     "timestamp_start": rec["timestamp_start"],
                     "timestamp_end": rec["timestamp_end"],
-                    "caption": caption_to_str(rec.get("caption")),
-                    "generated_caption": rec.get("generated_caption", ""),
+                    "caption": prose_caption_for_export(rec),
                     "bucket": rec.get("bucket", ""),
                     "verdict": rec.get("verdict", ""),
                     "final_score": rec.get("final_score", 0),
@@ -85,7 +84,7 @@ class ExportService(BaseService):
             "clip_actors", "actors_f1", "actors_f2", "actors_f3",
             "pos_f1", "pos_f2", "pos_f3",
             "frame1", "frame2", "frame3",
-            "generated_caption", "short_description",
+            "caption",
             "clip_mp4",
         ]
         with open(captions_csv, "w", newline="", encoding="utf-8") as f:
@@ -93,7 +92,7 @@ class ExportService(BaseService):
             writer.writeheader()
             for rec in exported:
                 row = {k: rec.get(k, "") for k in csv_cols}
-                row["short_description"] = caption_to_str(rec.get("caption"))
+                row["caption"] = prose_caption_for_export(rec)
                 row["clip_mp4"] = str(clips_dir / f"{rec['clip_id']}.mp4")
                 writer.writerow(row)
 
@@ -130,8 +129,7 @@ class ExportService(BaseService):
                         "timestamp_start": rec["timestamp_start"],
                         "timestamp_end": rec["timestamp_end"],
                         "clip_actors": rec.get("clip_actors", []),
-                        "generated_caption": rec.get("generated_caption", ""),
-                        "short_description": caption_to_str(rec.get("caption")),
+                        "caption": prose_caption_for_export(rec),
                         "clip_mp4": str(clip_dst if clip_dst.exists() else clip_src),
                         "verdict": rec.get("verdict"),
                         "final_score": rec.get("final_score"),

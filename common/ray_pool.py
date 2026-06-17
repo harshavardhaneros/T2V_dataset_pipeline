@@ -82,6 +82,15 @@ def init_ray(config: Dict[str, Any]) -> bool:
     return True
 
 
+def shutdown_ray(config: Dict[str, Any] | None = None) -> None:
+    """Release Ray GPUs and restore CUDA_VISIBLE_DEVICES for later vLLM steps."""
+    if config is not None and not ray_enabled(config):
+        return
+    from common.qwen_vllm import shutdown_ray_after_service
+
+    shutdown_ray_after_service()
+
+
 def parallel_map(
     config: Dict[str, Any],
     func: Callable[[T], R],

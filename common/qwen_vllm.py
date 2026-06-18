@@ -5,6 +5,7 @@ from __future__ import annotations
 import gc
 import logging
 import os
+from contextlib import nullcontext
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -122,8 +123,44 @@ def _shutdown_ray_before_vllm() -> None:
     shutdown_ray_after_service()
 
 
+def _visible_device_list() -> List[str]:
+    """Physical GPU ids from the launcher's CUDA_VISIBLE_DEVICES."""
+    _remember_cuda_visible_devices()
+    cvd = _ORIGINAL_CUDA_VISIBLE_DEVICES or os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if not cvd:
+        return []
+    return [p.strip() for p in cvd.split(",") if p.strip() != ""]
+
+
+def _physical_visible_for_logical(logical_gpu: int) -> str:
+    """Map logical cuda:N to the physical GPU id for CUDA_VISIBLE_DEVICES masking."""
+    parts = _visible_device_list()
+    if 0 <= logical_gpu < len(parts):
+        return parts[logical_gpu]
+    return str(logical_gpu)
+
+
+class _CudaVisibleScope:
+    """Temporarily pin the process to a single physical GPU (data-parallel replica)."""
+
+    def __init__(self, visible: str):
+        self._new = visible
+        self._old: Optional[str] = None
+
+    def __enter__(self) -> "_CudaVisibleScope":
+        self._old = os.environ.get("CUDA_VISIBLE_DEVICES")
+        os.environ["CUDA_VISIBLE_DEVICES"] = self._new
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        if self._old is None:
+            os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = self._old
+
+
 def _split_gpu_groups(gpu_ids: List[int], tensor_parallel_size: int) -> List[List[int]]:
-    """Split GPUs into TP groups (e.g. 8 GPUs @ TP=4 → two replicas)."""
+    """Split GPUs into TP groups. TP=1 → one GPU per group (data parallel)."""
     if not gpu_ids:
         return [[]]
     tp = max(1, tensor_parallel_size)
@@ -170,19 +207,28 @@ class _VLLMReplica:
 
         _restore_distributed_env_for_vllm()
         _fresh_master_port()
-        self._processor = AutoProcessor.from_pretrained(self.model_path)
         tp = max(1, len(self.gpu_ids))
         executor = "mp" if tp > 1 else "uni"
-        self._llm = LLM(
-            model=self.model_path,
-            tensor_parallel_size=tp,
-            dtype="bfloat16",
-            trust_remote_code=True,
-            max_model_len=self.max_model_len,
-            limit_mm_per_prompt={"image": self.max_images},
-            enforce_eager=True,
-            distributed_executor_backend=executor,
+        load_ctx = (
+            _CudaVisibleScope(_physical_visible_for_logical(self.gpu_ids[0]))
+            if tp == 1 and len(self.gpu_ids) == 1
+            else nullcontext()
         )
+        with load_ctx:
+            self._processor = AutoProcessor.from_pretrained(self.model_path)
+            self._llm = LLM(
+                model=self.model_path,
+                tensor_parallel_size=tp,
+                dtype="bfloat16",
+                trust_remote_code=True,
+                max_model_len=self.max_model_len,
+                limit_mm_per_prompt={"image": self.max_images},
+                enforce_eager=True,
+                distributed_executor_backend=executor,
+                gpu_memory_utilization=float(
+                    os.environ.get("VLLM_GPU_MEMORY_UTILIZATION", "0.90")
+                ),
+            )
         logger.info(
             "vLLM replica %d ready on GPUs %s",
             self.replica_id,
@@ -330,9 +376,7 @@ class QwenVLLMEngine:
         self.max_images = int(vllm_cfg.get("max_images_per_prompt", 3))
         if tp <= 0:
             tp = len(self.gpu_ids)
-        # TP=1: use one GPU only (avoids NCCL multicast failures on some hosts).
-        if tp == 1 and len(self.gpu_ids) > 1:
-            self.gpu_ids = [self.gpu_ids[0]]
+        self.tensor_parallel_size = tp
         self.gpu_groups = _split_gpu_groups(self.gpu_ids, tp)
         self._replicas: List[_VLLMReplica] = []
 
@@ -371,11 +415,13 @@ class QwenVLLMEngine:
             raise FileNotFoundError(f"Model not found: {self.model_path}")
 
         n_rep = len(self.gpu_groups)
-        tp_note = (
-            f"TP={len(self.gpu_groups[0])}"
-            if n_rep == 1
-            else f"{n_rep}×TP={len(self.gpu_groups[0])} replicas"
-        )
+        tp_w = len(self.gpu_groups[0])
+        if n_rep == 1:
+            tp_note = f"TP={tp_w}"
+        elif tp_w == 1:
+            tp_note = f"data-parallel ×{n_rep} (TP=1 per GPU)"
+        else:
+            tp_note = f"{n_rep}×TP={tp_w} tensor-parallel"
         log_service_gpus(
             self.stage,
             f"vLLM batched inference — {tp_note}",
@@ -395,6 +441,7 @@ class QwenVLLMEngine:
             )
             replica.load()
             self._replicas.append(replica)
+        _restore_cuda_visible_devices()
 
     def generate_batch(
         self,

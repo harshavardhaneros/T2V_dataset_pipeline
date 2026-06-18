@@ -49,5 +49,10 @@ python run_pipeline.py \
   --from-step s8 --to-step s12 \
   --force
 
+python scripts/rebuild_runtime_summary.py \
+  --config pipeline_v3_vllm_2gpu.yaml \
+  --video-id "${VIDEO_ID}"
+
 echo ""
 echo "Outputs: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs/${VIDEO_ID}/"
+echo "Runtime: v3_outputs/${VIDEO_ID}/reports/runtime_summary.csv"

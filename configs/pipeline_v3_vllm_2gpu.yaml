@@ -1,5 +1,5 @@
-# v3 two-GPU + vLLM — batched s5 classify + s8 caption (faster than Ray+transformers).
-# Use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1, TP=2).
+# v3 two-GPU + vLLM — data-parallel (TP=1 per GPU, no NCCL).
+# Use with CUDA_VISIBLE_DEVICES=2,3 (logical cuda:0, cuda:1).
 #
 # Install once:
 #   bash scripts/install_vllm.sh          # qwen2.5 caption/classify
@@ -44,9 +44,9 @@ s5:
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   vote_frames: 1
   max_tokens: 128
-  tensor_parallel_size: 1   # TP=2 NCCL fails on this host; 7B fits 1×H200
-  gpu_ids: [0]
-  batch_size: 16
+  tensor_parallel_size: 1   # data-parallel: one 7B replica per GPU (no NCCL)
+  gpu_ids: [0, 1]
+  batch_size: 12
   parallel: false
 
 s6:
@@ -78,12 +78,12 @@ ray:
 
 models_overrides:
   vllm:
-    batch_size: 8
+    batch_size: 6
     max_tokens: 1000
     max_model_len: 8192
     max_images_per_prompt: 3
-    tensor_parallel_size: 1   # gemma4-31b fits 1×H200; TP=2 NCCL fails here
-    gpu_ids: [0]
+    tensor_parallel_size: 1   # data-parallel: one Gemma4 replica per GPU
+    gpu_ids: [0, 1]
   unimatch:
     device: cuda:0
   dover:
@@ -100,8 +100,8 @@ captioner:
   caption_model: gemma4   # qwen2.5 | qwen3 | gemma3 | gemma4
   backend: vllm            # gemma4 via vLLM needs: bash scripts/install_vllm_gemma4.sh
   tensor_parallel_size: 1
-  gpu_ids: [0]
-  batch_size: 8
+  gpu_ids: [0, 1]
+  batch_size: 6
   max_tokens: 1000
   multi_frame: true
   caption_all_clips: true
@@ -131,7 +131,6 @@ master_pipeline:
   gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
   actor_embeddings_dir: actors/actor_embeddings
   yolo_face_model: yolov12n-face.pt
-  prompts_dir: prompts
   actor_similarity_threshold: 0.50
   actor_similarity_margin: 0.10
   actor_caption_min_similarity: 0.50
@@ -149,6 +148,6 @@ master_pipeline:
   actor_tag_gpu_id: 0
   clip_gpu_ids: [0, 1]
   caption_backend: vllm
-  prompts_dir: prompts   # Indic_video_pipeline/prompts (video-adapted; not Master_Pipeline)
+  prompts_dir: prompts   # resolved via pipeline_root → Indic_video_pipeline/prompts
   max_new_tokens: 128
   auto_download_yolo: true

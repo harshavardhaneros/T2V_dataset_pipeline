@@ -18,7 +18,14 @@ from common.paths import logs_dir, outputs_root, reports_dir, service_log_dir, w
 from common.run_output import init_run_output, run_output_enabled
 from common.video_files import find_movie_video
 from common.prompt_manager import PromptManager
-from common.runtime_tracker import append_runtime_summary, write_pipeline_runtime_json
+from common.runtime_tracker import (
+    append_runtime_summary,
+    collect_service_results_from_logs,
+    collect_service_timings_from_logs,
+    merge_service_results,
+    merge_service_timings,
+    write_pipeline_runtime_json,
+)
 from common.service_registry import get_service_class
 
 
@@ -155,16 +162,31 @@ def run_services_for_movie(
             print(f"  done in {timings[step_id]:.2f}s — {result.get('stats', {})}")
     finally:
         wall_elapsed = time.time() - wall_start
+        movie_stem = Path(movie_name).stem
+        log_timings = collect_service_timings_from_logs(config, movie_stem)
+        log_results = collect_service_results_from_logs(config, movie_stem)
+        merged_timings = merge_service_timings(log_timings, timings)
+        merged_results = merge_service_results(log_results, service_results)
+        total_service_seconds = sum(
+            merged_timings.get(f"s{i}", 0) for i in range(1, 13)
+        )
+        is_partial = bool(ran_from and ran_from != service_order[0]) or bool(
+            ran_to and ran_to != service_order[-1]
+        )
+        wall_seconds = (
+            total_service_seconds if is_partial else wall_elapsed
+        )
+
         runtime_json = reports_dir(config) / f"{movie_dir.name}_pipeline_runtime.json"
         write_pipeline_runtime_json(
             runtime_json,
             video_id=movie_dir.name,
             movie_name=movie_name,
             movie_dir=movie_dir,
-            services=service_results,
-            wall_runtime_seconds=wall_elapsed,
-            from_step=ran_from,
-            to_step=ran_to,
+            services=merged_results,
+            wall_runtime_seconds=wall_seconds,
+            from_step=service_order[0] if merged_results else ran_from,
+            to_step=service_order[-1] if len(merged_results) == len(service_order) else ran_to,
             status=pipeline_status,
             error=pipeline_error,
         )
@@ -173,7 +195,7 @@ def run_services_for_movie(
         append_runtime_summary(
             reports_dir(config) / "runtime_summary.csv",
             movie_dir.name,
-            timings,
+            merged_timings,
         )
 
     return timings

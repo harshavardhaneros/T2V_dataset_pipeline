@@ -9,7 +9,7 @@ This clip belongs to the PEOPLE & PORTRAITS bucket.
 
 Describe the following in your caption:
 - Subject(s): approximate age range, number of people, gender presentation, posture
-- FACIAL EXPRESSION (REQUIRED — be very specific, this is critical for T2I training):
+- FACIAL EXPRESSION (REQUIRED — be very specific, this is critical for video caption training):
     * Eyes: open/closed/half-closed, gaze direction (looking left/right/at camera/down), squinting, wide-eyed
     * Mouth: open/closed, smiling/laughing/speaking/frowning/neutral, teeth visible or not
     * Overall mood: joyful, serious, pensive, surprised, angry, calm, focused, emotional
@@ -18,12 +18,6 @@ Describe the following in your caption:
 - Notable details: jewellery, bindi, tilak, mehendi, hair, accessories — only what is visible
 - Setting and background: home, street, studio, market, festival ground — be specific
 - Cinematography: lighting quality (natural, studio, window light, harsh sun), framing (close-up, mid-shot, full body), depth of field
-
-────────────────────────────────────────────────────────────────────────────
-GLOBAL RULES
-────────────────────────────────────────────────────────────────────────────
-
-GLOBAL RULES:
 ────────────────────────────────────────────────────────────────────────────
 VIDEO CLIP RULES (prose output)
 ────────────────────────────────────────────────────────────────────────────

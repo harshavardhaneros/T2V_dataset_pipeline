@@ -13,12 +13,6 @@ Describe the following in your caption:
 - Visual details: signage (describe text in quotes if readable), vehicles, stalls, architecture of surrounding buildings
 - Cultural markers: Indian city aesthetic — auto-rickshaws, painted walls, chai stalls, religious shrines on street corners
 - Light quality: harsh tropical midday, warm tungsten night, neon signage glow, overcast flat light
-
-────────────────────────────────────────────────────────────────────────────
-GLOBAL RULES
-────────────────────────────────────────────────────────────────────────────
-
-GLOBAL RULES:
 ────────────────────────────────────────────────────────────────────────────
 VIDEO CLIP RULES (prose output)
 ────────────────────────────────────────────────────────────────────────────

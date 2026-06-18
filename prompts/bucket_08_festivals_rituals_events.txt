@@ -13,12 +13,6 @@ Describe the following in your caption:
 - Key visual elements: decorations (marigold torans, diyas, rangoli, pandal), ritual objects (puja thali, agarbatti, conch), costumes, crowd density
 - Emotional atmosphere: joyful and chaotic, solemn and devotional, festive and vibrant, tender and intimate
 - Lighting and setting: night festival illumination, temple lamp glow, outdoor daylight procession, stage spotlight
-
-────────────────────────────────────────────────────────────────────────────
-GLOBAL RULES
-────────────────────────────────────────────────────────────────────────────
-
-GLOBAL RULES:
 ────────────────────────────────────────────────────────────────────────────
 VIDEO CLIP RULES (prose output)
 ────────────────────────────────────────────────────────────────────────────

@@ -13,12 +13,6 @@ Describe the following in your caption:
 - Visual elements: materials (granite, sandstone, brick, glass), carvings, arches, domes, gopuram tiers, jali screens, minarets, facades
 - Condition and context: well-maintained, ruined, overgrown, illuminated, crowd present, surrounding landscape
 - Time of day, lighting quality, and camera framing (wide establishing, ground-level, aerial, interior, detail crop)
-
-────────────────────────────────────────────────────────────────────────────
-GLOBAL RULES
-────────────────────────────────────────────────────────────────────────────
-
-GLOBAL RULES:
 ────────────────────────────────────────────────────────────────────────────
 VIDEO CLIP RULES (prose output)
 ────────────────────────────────────────────────────────────────────────────

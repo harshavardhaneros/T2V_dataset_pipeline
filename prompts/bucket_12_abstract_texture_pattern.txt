@@ -13,12 +13,6 @@ Describe the following in your caption:
 - Colour palette and tonal quality: describe dominant hues, contrast level, warmth or coolness
 - Scale cue: macro extreme close-up filling the entire frame, detail within a larger scene, full-frame abstraction
 - Photographic technique: long exposure, shallow depth of field, backlit translucency, high-key, geometric symmetry
-
-────────────────────────────────────────────────────────────────────────────
-GLOBAL RULES
-────────────────────────────────────────────────────────────────────────────
-
-GLOBAL RULES:
 ────────────────────────────────────────────────────────────────────────────
 VIDEO CLIP RULES (prose output)
 ────────────────────────────────────────────────────────────────────────────

@@ -27,9 +27,9 @@ from common.master_bridge import (
     bucket_to_category,
     build_caption_prompt,
     init_master,
-    load_master_prompts,
     save_clip_keyframe,
 )
+from common.bucket_prompts import bucket_prompt_for_record, resolve_bucket_prompts_dir
 from common.metadata_manager import MetadataManager
 from common.paths import qwen_model_path
 from common.vlm_service import QwenVLMService, clip_keyframe_images, parse_vlm_json
@@ -183,9 +183,8 @@ class CaptionService(BaseService):
         gpu_ids = [int(g) for g in mp.get("caption_gpu_ids", [0, 1, 2, 3])]
 
         init_master(mp["root"])
-        master_prompts = load_master_prompts(
-            Path(mp["root"]) / mp.get("prompts_dir", "prompts")
-        )
+        prompts_dir = resolve_bucket_prompts_dir(self.config)
+        logger.info("Bucket prompts dir: %s", prompts_dir)
         vlm = QwenVLMService.acquire(self.config, gpu_ids, "s8")
         frames_dir = self.movie_dir / "actor_frames"
         pcfg = self.config.get("pipeline", {}).get("captioner", {})
@@ -213,21 +212,10 @@ class CaptionService(BaseService):
                     bucket,
                     prompt_mgr.get_bucket_info(bucket)["slug"] if prompt_mgr else "",
                 )
-                if master_prompts:
-                    bucket_prompt = master_prompts.get(
-                        category, master_prompts.get("people_portraits", "")
-                    )
-                    prompt_version = f"master_{category}"
-                elif prompt_mgr:
-                    try:
-                        bucket_prompt = prompt_mgr.get_prompt(bucket)
-                        prompt_version = prompt_mgr.version
-                    except KeyError:
-                        bucket_prompt = prompt_mgr.get_prompt("bucket_01")
-                        prompt_version = prompt_mgr.version
-                else:
-                    bucket_prompt = ""
-                    prompt_version = ""
+                bucket_prompt = bucket_prompt_for_record(
+                    rec, self.config, prompt_mgr=prompt_mgr
+                )
+                prompt_version = f"video_{category}"
 
                 eligible = caption_eligible_actors(rec)
                 actors = rec.get("actors") or [] if eligible else []

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from PIL import Image
 
 from common.clip_io import frame_offsets_for_record
+from common.bucket_prompts import bucket_prompt_for_record
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
 from common.caption_models import caption_model_key, resolve_caption_model
 from common.paths import models_root
@@ -73,7 +74,10 @@ CAPTION_PROSE_SYSTEM_PROMPT = (
     "- Include actor names and positions while explaining object actions.\n"
     "- You are captioning a short VIDEO CLIP (not a single photograph).\n"
     "- Use all provided sequential frames to infer motion, actions, and camera movement.\n"
-    "- Describe what happens over the full clip, including movement.\n\n"
+    "- Describe what happens over the full clip, including movement.\n"
+    "- Start directly with the subject or action. Never open with meta phrases like "
+    "\"In the video clip\", \"In this clip\", \"The video shows\", \"This video depicts\", "
+    "\"The clip shows\", or \"The image shows\".\n\n"
     "Indian Cultural Details (include ONLY if visible):\n"
     "- attire: women: saree (silk/cotton), half-saree, salwar, blouse color/design,\n"
     "  embroidery (Zardozi, Chikankari). men: veshti/dhoti, kurta, shirt, traditional wear\n"
@@ -107,6 +111,29 @@ def get_caption_system_prompt(config: Dict[str, Any]) -> str:
     return CAPTION_JSON_SYSTEM_PROMPT
 
 
+def _strip_caption_boilerplate(text: str) -> str:
+    """Remove common model meta openers from prose captions."""
+    cleaned = text.strip()
+    patterns = (
+        r"^In the video clip,?\s*",
+        r"^In this (video )?clip,?\s*",
+        r"^The video clip (shows|depicts|features)\s*",
+        r"^This video clip (shows|depicts|features)\s*",
+        r"^The clip (shows|depicts|features)\s*",
+        r"^This clip (shows|depicts|features)\s*",
+        r"^The video (shows|depicts|features)\s*",
+        r"^This video (shows|depicts|features)\s*",
+    )
+    for pat in patterns:
+        new = re.sub(pat, "", cleaned, count=1, flags=re.IGNORECASE)
+        if new != cleaned:
+            cleaned = new.strip()
+            break
+    if cleaned and cleaned[0].islower():
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned
+
+
 def _strip_markdown_fences(text: str) -> str:
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -132,6 +159,7 @@ def normalize_caption_output(
 
     if caption_format(config) == "prose":
         text = _strip_markdown_fences(raw)
+        text = _strip_caption_boilerplate(text)
         text = enforce_actor_names_for_record(text, rec, config)
         return text, text, {"short_description": text, "_format": "prose"}
 
@@ -209,19 +237,22 @@ def build_caption_user_text(
     *,
     multi_frame: bool = False,
     frame_offsets: Optional[List[float]] = None,
+    bucket_guidance: str = "",
 ) -> str:
-    """User prompt aligned with eros_caption_video/pipeline.py H200Captioner._build_messages."""
+    """User prompt for multi-frame video clip captioning."""
     from common.actor_caption import caption_eligible_actors
 
     clip_actors = caption_eligible_actors(rec) or []
     lines: List[str] = []
+    if bucket_guidance.strip():
+        lines.append(bucket_guidance.strip())
     if multi_frame:
         dur = _clip_duration_sec(rec)
         offsets = frame_offsets or [dur * 0.2, dur * 0.5, dur * 0.8]
         times = ", ".join(f"{t:.1f}s" for t in offsets[:3])
         lines.append(
-            f"The images are three sequential frames from one {dur:g}-second video clip "
-            f"(at {times}). Describe the full clip, including movement."
+            f"Sequential frames span {dur:g} seconds (at {times}). "
+            "Describe the full clip including movement and camera work."
         )
     if len(clip_actors) >= 2:
         cast = " and ".join(clip_actors)
@@ -239,11 +270,7 @@ def build_caption_user_text(
             "Do not write 'the man', 'the woman', or 'a person' for the identified person."
         )
     else:
-        lines.append("Describe the people, setting, and action visible in the clip.")
-    lines.append(
-        "You are a Visual Art Director generating structured, "
-        "high-quality captions for the video frames."
-    )
+        lines.append("Describe the people, setting, and action visible across the frames.")
     return "\n".join(lines)
 
 
@@ -383,7 +410,12 @@ class GemmaCaptionService:
         content.append({
             "type": "text",
             "text": build_caption_user_text(
-                rec, multi_frame=multi, frame_offsets=offsets
+                rec,
+                multi_frame=multi,
+                frame_offsets=offsets,
+                bucket_guidance=bucket_prompt_for_record(
+                    rec, self._config, prompt_mgr=self._config.get("_prompt_manager")
+                ),
             ),
         })
         messages = [

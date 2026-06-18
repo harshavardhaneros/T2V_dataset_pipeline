@@ -2,7 +2,8 @@
 # Use with CUDA_VISIBLE_DEVICES=4,5 (logical cuda:0, cuda:1, TP=2).
 #
 # Install once:
-#   bash scripts/install_vllm.sh
+#   bash scripts/install_vllm.sh          # qwen2.5 caption/classify
+#   bash scripts/install_vllm_gemma4.sh   # gemma4 caption (vLLM 0.19+)
 #
 # Run:
 #   CUDA_VISIBLE_DEVICES=4,5 bash scripts/run_v3_vllm_2gpu.sh /path/to/movie.mp4 VIDEO_ID
@@ -43,7 +44,9 @@ s5:
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   vote_frames: 1
   max_tokens: 128
-  gpu_ids: [0, 1]
+  tensor_parallel_size: 1   # TP=2 NCCL fails on this host; 7B fits 1×H200
+  gpu_ids: [0]
+  batch_size: 16
   parallel: false
 
 s6:
@@ -75,11 +78,12 @@ ray:
 
 models_overrides:
   vllm:
-    batch_size: 16
+    batch_size: 8
     max_tokens: 1000
     max_model_len: 8192
     max_images_per_prompt: 3
-    gpu_ids: [0, 1]
+    tensor_parallel_size: 1   # gemma4-31b fits 1×H200; TP=2 NCCL fails here
+    gpu_ids: [0]
   unimatch:
     device: cuda:0
   dover:
@@ -94,9 +98,10 @@ models_overrides:
 
 captioner:
   caption_model: gemma4   # qwen2.5 | qwen3 | gemma3 | gemma4
-  backend: vllm            # auto from caption_model if omitted (qwen*→vllm, gemma*→gemma)
-  gpu_ids: [0, 1]
-  batch_size: 16
+  backend: vllm            # gemma4 via vLLM needs: bash scripts/install_vllm_gemma4.sh
+  tensor_parallel_size: 1
+  gpu_ids: [0]
+  batch_size: 8
   max_tokens: 1000
   multi_frame: true
   caption_all_clips: true
@@ -144,5 +149,6 @@ master_pipeline:
   actor_tag_gpu_id: 0
   clip_gpu_ids: [0, 1]
   caption_backend: vllm
+  prompts_dir: prompts   # Indic_video_pipeline/prompts (video-adapted; not Master_Pipeline)
   max_new_tokens: 128
   auto_download_yolo: true

@@ -7,10 +7,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
+from common.bucket_prompts import bucket_prompt_for_record
 from common.gemma_caption import (
+    build_caption_user_text,
+    get_caption_system_prompt,
     pick_caption_frames,
 )
-from common.qwen_video_caption import build_video_caption_prompt
+from common.clip_io import frame_offsets_for_record
+from common.caption_models import resolve_caption_model
 from common.qwen_vllm import QwenVLLMEngine
 
 
@@ -44,6 +48,28 @@ def _images_for_clip(
     return images
 
 
+def _caption_prompt_parts(
+    rec: Dict[str, Any], config: Dict[str, Any]
+) -> tuple[str, str | None]:
+    """Return (user_text, system_text). system_text is set for Gemma family."""
+    resolved = resolve_caption_model(config)
+    offsets = frame_offsets_for_record(rec, config)
+    bucket_guidance = bucket_prompt_for_record(
+        rec, config, prompt_mgr=config.get("_prompt_manager")
+    )
+    user = build_caption_user_text(
+        rec,
+        multi_frame=True,
+        frame_offsets=offsets,
+        bucket_guidance=bucket_guidance,
+    )
+    if resolved["family"] == "gemma":
+        return user, get_caption_system_prompt(config)
+    from common.qwen_video_caption import build_video_caption_prompt
+
+    return build_video_caption_prompt(rec, config), None
+
+
 def caption_clips_vllm(
     config: Dict[str, Any],
     items: List[Tuple[Dict[str, Any], Path]],
@@ -63,10 +89,19 @@ def caption_clips_vllm(
     for rec, clip_path in items:
         images = _images_for_clip(rec, frames_dir, actor_frames_dir, clip_path)
         if not images:
-            batch.append((Image.new("RGB", (64, 64)), "Describe this clip."))
+            user_text, system_text = _caption_prompt_parts(rec, config)
+            if not user_text.strip():
+                user_text = "Describe this clip."
+            if system_text:
+                batch.append((Image.new("RGB", (64, 64)), user_text, system_text))
+            else:
+                batch.append((Image.new("RGB", (64, 64)), user_text))
         else:
-            prompt = build_video_caption_prompt(rec, config)
-            batch.append((images, prompt))
+            user_text, system_text = _caption_prompt_parts(rec, config)
+            if system_text:
+                batch.append((images, user_text, system_text))
+            else:
+                batch.append((images, user_text))
         order.append(rec)
 
     try:

@@ -12,11 +12,18 @@ conda activate indic_video_pipeline
 
 cd "${ROOT}"
 export CUDA_VISIBLE_DEVICES="${GPUS}"
-export VLLM_USE_V1=0
-export VLLM_ATTENTION_BACKEND=XFORMERS
+
+# Gemma4 needs vLLM 0.19+ (V1 engine). Qwen2.5 on 0.8.x uses legacy env — set only for old vLLM.
+VLLM_VER="$(python -c "import vllm; print(vllm.__version__)" 2>/dev/null || echo 0)"
+VLLM_MAJOR="${VLLM_VER%%.*}"
+VLLM_MINOR="$(echo "${VLLM_VER}" | cut -d. -f2)"
+if [[ "${VLLM_MAJOR}" -eq 0 && "${VLLM_MINOR}" -lt 19 ]]; then
+  export VLLM_USE_V1=0
+  export VLLM_ATTENTION_BACKEND=XFORMERS
+fi
 
 python -c "import vllm; print('vllm', vllm.__version__)" || {
-  echo "Run first: bash scripts/install_vllm.sh"
+  echo "Run: bash scripts/install_vllm.sh (qwen2.5) or bash scripts/install_vllm_gemma4.sh (gemma4)"
   exit 1
 }
 

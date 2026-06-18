@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from PIL import Image
 
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
+from common.caption_models import resolve_caption_model
 from common.paths import qwen_classify_model_path, qwen_video_model_path
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,16 @@ ImageInput = Union[Image.Image, Sequence[Image.Image]]
 
 
 def configure_vllm_env() -> None:
-    """vLLM 0.8.x + torch 2.6 cu124: avoid V1 engine and broken flash-attn wheel."""
-    os.environ.setdefault("VLLM_USE_V1", "0")
-    os.environ.setdefault("VLLM_ATTENTION_BACKEND", "XFORMERS")
+    """Tune vLLM env for installed version (0.8.x vs 0.19+)."""
+    try:
+        import vllm as _vllm
+
+        major_minor = tuple(int(x) for x in _vllm.__version__.split(".")[:2])
+    except Exception:
+        major_minor = (0, 8)
+    if major_minor < (0, 19):
+        os.environ.setdefault("VLLM_USE_V1", "0")
+        os.environ.setdefault("VLLM_ATTENTION_BACKEND", "XFORMERS")
     # TP worker subprocesses must rendezvous on loopback (node IP often unreachable).
     os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
     os.environ.setdefault("VLLM_HOST_IP", "127.0.0.1")
@@ -135,6 +143,7 @@ class _VLLMReplica:
         max_images: int,
         max_tokens: int,
         replica_id: int,
+        caption_family: str = "qwen",
     ):
         self.model_path = model_path
         self.gpu_ids = gpu_ids
@@ -142,6 +151,7 @@ class _VLLMReplica:
         self.max_images = max_images
         self.max_tokens = max_tokens
         self.replica_id = replica_id
+        self.caption_family = caption_family
         self._llm = None
         self._processor = None
 
@@ -161,15 +171,17 @@ class _VLLMReplica:
         _restore_distributed_env_for_vllm()
         _fresh_master_port()
         self._processor = AutoProcessor.from_pretrained(self.model_path)
+        tp = max(1, len(self.gpu_ids))
+        executor = "mp" if tp > 1 else "uni"
         self._llm = LLM(
             model=self.model_path,
-            tensor_parallel_size=max(1, len(self.gpu_ids)),
+            tensor_parallel_size=tp,
             dtype="bfloat16",
             trust_remote_code=True,
             max_model_len=self.max_model_len,
             limit_mm_per_prompt={"image": self.max_images},
             enforce_eager=True,
-            distributed_executor_backend="mp",
+            distributed_executor_backend=executor,
         )
         logger.info(
             "vLLM replica %d ready on GPUs %s",
@@ -177,7 +189,13 @@ class _VLLMReplica:
             self.gpu_ids,
         )
 
-    def _build_prompt(self, images: ImageInput, text: str) -> Dict[str, Any]:
+    def _build_prompt(
+        self,
+        images: ImageInput,
+        text: str,
+        *,
+        system_text: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if isinstance(images, Image.Image):
             img_list = [images]
         else:
@@ -188,16 +206,30 @@ class _VLLMReplica:
             content.append({"type": "image", "image": img})
         content.append({"type": "text", "text": text})
 
-        messages = [{"role": "user", "content": content}]
+        if system_text or self.caption_family == "gemma":
+            sys_msg = system_text or ""
+            messages = [
+                {"role": "system", "content": [{"type": "text", "text": sys_msg}]},
+                {"role": "user", "content": content},
+            ]
+        else:
+            messages = [{"role": "user", "content": content}]
         prompt_text = self._processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
         mm_data = {"image": img_list[0]} if len(img_list) == 1 else {"image": img_list}
         return {"prompt": prompt_text, "multi_modal_data": mm_data}
 
+    def _unpack_item(
+        self, item: Union[Tuple[ImageInput, str], Tuple[ImageInput, str, str]]
+    ) -> Tuple[ImageInput, str, Optional[str]]:
+        if len(item) >= 3:
+            return item[0], item[1], item[2]
+        return item[0], item[1], None
+
     def generate_batch(
         self,
-        items: List[Tuple[ImageInput, str]],
+        items: List[Union[Tuple[ImageInput, str], Tuple[ImageInput, str, str]]],
         *,
         max_tokens: Optional[int] = None,
     ) -> List[str]:
@@ -211,13 +243,18 @@ class _VLLMReplica:
             temperature=0,
             max_tokens=max_tokens or self.max_tokens,
         )
-        prompts = [self._build_prompt(img, text) for img, text in items]
+        prompts = []
+        for item in items:
+            images, text, system_text = self._unpack_item(item)
+            prompts.append(
+                self._build_prompt(images, text, system_text=system_text)
+            )
         outputs = self._llm.generate(prompts, sampling)
         return [out.outputs[0].text.strip() for out in outputs]
 
     def generate_chunks(
         self,
-        items: List[Tuple[ImageInput, str]],
+        items: List[Union[Tuple[ImageInput, str], Tuple[ImageInput, str, str]]],
         *,
         batch_size: int,
         max_tokens: Optional[int] = None,
@@ -264,14 +301,23 @@ class QwenVLLMEngine:
             self.model_path = str(
                 s5.get("classify_model_path") or qwen_classify_model_path(config)
             )
+            self._caption_family = "qwen"
             self.max_tokens = int(s5.get("max_tokens", 128))
             gpu_ids = [int(g) for g in s5.get("gpu_ids", mp.get("classify_gpu_ids", [0]))]
+            tp = int(s5.get("tensor_parallel_size", 1))
+            self.batch_size = int(s5.get("batch_size", vllm_cfg.get("batch_size", 16)))
         else:
-            self.model_path = str(qwen_video_model_path(config))
+            resolved = resolve_caption_model(config)
+            self.model_path = str(resolved["model_path"])
+            self._caption_family = resolved["family"]
             self.max_tokens = int(
                 vllm_cfg.get("max_tokens", cap.get("max_tokens", 1000))
             )
             gpu_ids = [int(g) for g in vllm_cfg.get("gpu_ids", cap.get("gpu_ids", [0]))]
+            tp = int(cap.get("tensor_parallel_size", vllm_cfg.get("tensor_parallel_size", 0)))
+            self.batch_size = int(
+                cap.get("batch_size", vllm_cfg.get("batch_size", 16))
+            )
 
         self.gpu_ids = resolve_gpu_ids(gpu_ids)
         if not self.gpu_ids:
@@ -280,12 +326,13 @@ class QwenVLLMEngine:
                 "Check CUDA_VISIBLE_DEVICES and PyTorch CUDA build "
                 "(run: bash scripts/install_vllm.sh to fix cu130/cu124 mismatch)."
             )
-        self.batch_size = int(vllm_cfg.get("batch_size", 16))
         self.max_model_len = int(vllm_cfg.get("max_model_len", 8192))
         self.max_images = int(vllm_cfg.get("max_images_per_prompt", 3))
-        tp = int(vllm_cfg.get("tensor_parallel_size", 0))
         if tp <= 0:
             tp = len(self.gpu_ids)
+        # TP=1: use one GPU only (avoids NCCL multicast failures on some hosts).
+        if tp == 1 and len(self.gpu_ids) > 1:
+            self.gpu_ids = [self.gpu_ids[0]]
         self.gpu_groups = _split_gpu_groups(self.gpu_ids, tp)
         self._replicas: List[_VLLMReplica] = []
 
@@ -344,6 +391,7 @@ class QwenVLLMEngine:
                 max_images=self.max_images,
                 max_tokens=self.max_tokens,
                 replica_id=idx,
+                caption_family=getattr(self, "_caption_family", "qwen"),
             )
             replica.load()
             self._replicas.append(replica)

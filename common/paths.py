@@ -86,7 +86,7 @@ def qwen_video_model_path(config: Dict[str, Any]) -> Path:
     pcfg = config.get("pipeline", {}).get("captioner", {})
     if pcfg.get("caption_model") or pcfg.get("model_path"):
         resolved = resolve_caption_model(config)
-        if resolved["family"] == "qwen":
+        if resolved["family"] == "qwen" or resolved["backend"] == "vllm":
             return resolved["model_path"]
 
     qc = config.get("models", {}).get("qwen_video_caption", {})

@@ -1,78 +1,67 @@
-"""Service 4: movie-level watermark detection (placeholder consensus)."""
+"""Service 4: per-clip on-screen text detection via Gemma4 + vLLM."""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Dict, List
 
 from common.base_service import BaseService
-from common.progress import iter_progress
-from common.frame_sampler import sample_keyframes
 from common.metadata_manager import MetadataManager
+from common.progress import iter_progress
+from common.vllm_text_detect import detect_text_clips_vllm
 
 
 class WatermarkService(BaseService):
     service_id = "s4"
-    service_name = "s4_watermark"
-    owned_fields = ["watermark"]
+    service_name = "s4_text_detect"
+    owned_fields = ["has_text", "text_overlay"]
 
     def process_movie(self) -> Dict[str, Any]:
         records = self.metadata.read_all()
-        meta_path = self.movie_dir / "movie_watermark.json"
-        if not self.force and meta_path.exists():
-            wm = json.loads(meta_path.read_text(encoding="utf-8"))
-        else:
-            wm = self._detect_watermark(records)
-            meta_path.write_text(json.dumps(wm, indent=2), encoding="utf-8")
-
+        to_run = [r for r in records if not self.should_skip_clip(r)]
+        text_present = 0
+        text_absent = 0
+        text_types: Dict[str, int] = {}
         updated = 0
-        for rec in iter_progress(records, desc="s4 watermark", unit="clip"):
-            if self.should_skip_clip(rec):
-                continue
-            rec["watermark"] = dict(wm)
-            MetadataManager.mark_done(rec, self.service_id)
-            updated += 1
-        self.metadata.write_all(records)
-        return {"clips_updated": updated, "watermark": wm}
 
-    def _detect_watermark(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
-        sample_n = int(
-            self.config.get("thresholds", {}).get("watermark", {}).get("sample_clips", 5)
-        )
-        active = [r for r in records if r.get("keep", True)][:sample_n]
-        corners = ["top_left", "top_right", "bottom_left", "bottom_right"]
-        votes: Dict[str, int] = {c: 0 for c in corners}
-
-        if self.movie_video and active:
-            for rec in iter_progress(active, desc="s4 watermark detect", unit="clip"):
-                frames = sample_keyframes(
-                    str(self.movie_video),
-                    rec["timestamp_start"],
-                    rec["timestamp_end"],
-                    crop_box=rec.get("crop_box", ""),
+        if to_run:
+            detected = detect_text_clips_vllm(
+                self.config,
+                to_run,
+                movie_dir=self.movie_dir,
+                movie_video=self.movie_video,
+            )
+            for rec in iter_progress(to_run, desc="s4 apply", unit="clip"):
+                payload = detected.get(rec["clip_id"], {})
+                rec.pop("watermark", None)
+                rec["has_text"] = bool(payload.get("has_text"))
+                rec["text_overlay"] = payload.get(
+                    "text_overlay",
+                    {"present": False, "text_type": "none", "confidence": 0.0},
                 )
-                if not frames:
-                    continue
-                frame = frames[0]
-                h, w = frame.shape[:2]
-                regions = {
-                    "top_left": frame[0 : h // 5, 0 : w // 5],
-                    "top_right": frame[0 : h // 5, -w // 5 :],
-                    "bottom_left": frame[-h // 5 :, 0 : w // 5],
-                    "bottom_right": frame[-h // 5 :, -w // 5 :],
-                }
-                import numpy as np
+                MetadataManager.mark_done(rec, self.service_id)
+                updated += 1
 
-                for corner, patch in regions.items():
-                    if float(np.std(patch)) > 40:
-                        votes[corner] += 1
+        for rec in records:
+            if rec.get("has_text"):
+                text_present += 1
+                ttype = str((rec.get("text_overlay") or {}).get("text_type") or "other")
+                text_types[ttype] = text_types.get(ttype, 0) + 1
+            else:
+                text_absent += 1
 
-        best = max(votes, key=votes.get) if votes else "top_right"
-        present = votes.get(best, 0) >= 2
-        return {
-            "present": present,
-            "corner": best if present else None,
-            "bbox": [0, 0, 80, 40] if present else [],
-            "mask_stored": False,
+        self.metadata.write_all(records)
+
+        s4_cfg = self.config.get("pipeline", {}).get("s4", {})
+        summary = {
+            "clips_updated": updated,
+            "text_present": text_present,
+            "text_absent": text_absent,
+            "text_types": text_types,
+            "model": s4_cfg.get("model_path") or "gemma-4-31b-it",
+            "backend": "vllm",
         }
+        (self.movie_dir / "movie_text_detect.json").write_text(
+            json.dumps(summary, indent=2), encoding="utf-8"
+        )
+        return summary

@@ -48,8 +48,13 @@ gate:
 watermark:
   sample_clips: 5
   corner_threshold: 0.6
+  corner_std_threshold: 40
   delogo:
     x: 12
     y: 10
     w: 140
     h: 58
+
+s4:
+  backend: vllm
+  max_tokens: 128

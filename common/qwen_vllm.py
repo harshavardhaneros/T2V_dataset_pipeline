@@ -352,6 +352,26 @@ class QwenVLLMEngine:
             gpu_ids = [int(g) for g in s5.get("gpu_ids", mp.get("classify_gpu_ids", [0]))]
             tp = int(s5.get("tensor_parallel_size", 1))
             self.batch_size = int(s5.get("batch_size", vllm_cfg.get("batch_size", 16)))
+        elif stage == "s4":
+            s4 = pcfg.get("s4", {})
+            if s4.get("model_path"):
+                self.model_path = str(s4["model_path"])
+            else:
+                resolved = resolve_caption_model(config)
+                if resolved["key"] == "gemma4":
+                    self.model_path = str(resolved["model_path"])
+                else:
+                    root = Path(config.get("pipeline", {}).get("models_root", ""))
+                    if not root:
+                        from common.paths import models_root
+
+                        root = models_root(config)
+                    self.model_path = str(root / "gemma-4-31b-it")
+            self._caption_family = "gemma"
+            self.max_tokens = int(s4.get("max_tokens", 128))
+            gpu_ids = [int(g) for g in s4.get("gpu_ids", [0, 1])]
+            tp = int(s4.get("tensor_parallel_size", 1))
+            self.batch_size = int(s4.get("batch_size", 8))
         else:
             resolved = resolve_caption_model(config)
             self.model_path = str(resolved["model_path"])

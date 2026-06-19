@@ -366,6 +366,8 @@ def write_index_html(ws: Path, export_dir: Path, records: list[dict]) -> None:
 
 <h2>Review pages</h2>
 <div class="links">
+  <a class="card" href="pipeline_dashboard.html">Pipeline dashboard
+    <small>Runtime · funnel · buckets · 8 clips/page with video, scores, actors</small></a>
   <a class="card" href="all_clips_review.html">All clips (full metadata)
     <small>Video + captions + motion/DOVER scores + actors + 3 frames · filterable</small></a>
   <a class="card" href="clip_review.html">Final clips (caption grid)

@@ -2,12 +2,14 @@
 
 classifier: Qwen3-VL-32B
 verifier: Gemma-3-4B-IT
-# Caption models (set captioner.caption_model in pipeline yaml):
-#   qwen2.5  -> Qwen2.5-VL-7B-Instruct  (vllm, default)
-#   qwen3    -> Qwen3-VL-32B-Instruct    (vllm, needs 4+ GPUs)
-#   gemma3   -> gemma-3-4b-it            (gemma backend)
-#   gemma4   -> gemma-4-31b-it           (gemma backend, needs 80GB+)
-# Download: bash scripts/download_caption_models.sh qwen3 gemma4
+# Caption models (set captioner.caption_model + backend in pipeline yaml):
+#   qwen2.5      -> Qwen2.5-VL-7B-Instruct  (vllm frames | video MP4)
+#   qwen3        -> Qwen3-VL-32B-Instruct    (vllm frames)
+#   qwen3.5      -> Qwen3.5-27B              (video MP4 native)
+#   gemma3       -> gemma-3-4b-it            (gemma frames)
+#   gemma4       -> gemma-4-31b-it           (vllm frames)
+#   gemma4_dense -> gemma-4-31b-dense        (video MP4 native, same weights as gemma4)
+# Download: bash scripts/download_caption_models.sh qwen3.5 gemma4_dense
 
 captioner: Gemma-3-4B-IT
 face: YOLOv12n-face + InsightFace-buffalo_l

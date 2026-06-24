@@ -7,7 +7,7 @@
 | Conda env `indic_video_pipeline` | Created |
 | PyTorch CUDA (cu128) | `torch.cuda.is_available() == True`, 8× H200 |
 | Qwen2.5-VL-32B-Instruct | Downloaded to `models/Qwen2.5-VL-32B-Instruct` (~64GB) |
-| YOLO face weights | `Master_Pipeline_t2i_dataset/actors/yolov12n-face.pt` |
+| YOLO face weights | `master/actors/yolov12n-face.pt` |
 | Actor embeddings | 108 `.pkl` files |
 | Config `model_path` | Points to local `models/` folder |
 

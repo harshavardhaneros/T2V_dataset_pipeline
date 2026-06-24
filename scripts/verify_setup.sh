@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODEL="${ROOT}/../models/Qwen2.5-VL-7B-Instruct"
-YOLO="${ROOT}/../Master_Pipeline_t2i_dataset/actors/yolov12n-face.pt"
+YOLO="${ROOT}/master/actors/yolov12n-face.pt"
 
 # Use activated env python (conda run can fail on broken base cross-compiler toolchains).
 if [[ "${CONDA_DEFAULT_ENV:-}" != "indic_video_pipeline" ]]; then
@@ -55,7 +55,7 @@ if [[ -f "${YOLO}" ]]; then
 else
   echo "  FAIL Run: bash scripts/download_yolo_face.sh"
 fi
-emb_count=$(ls "${ROOT}/../Master_Pipeline_t2i_dataset/actors/actor_embeddings/"*.pkl 2>/dev/null | wc -l)
+emb_count=$(ls "${ROOT}/master/actors/actor_embeddings/"*.pkl 2>/dev/null | wc -l)
 echo "  OK  Actor embeddings: ${emb_count} pkl files"
 
 echo ""

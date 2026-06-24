@@ -1,4 +1,4 @@
-"""Bridge to Master_Pipeline_t2i_dataset actor_tagger + captioner."""
+"""Bridge to local master/ actor_tagger + captioner (vendored from Master_Pipeline)."""
 
 from __future__ import annotations
 
@@ -19,11 +19,14 @@ _SAVED_MODULES: Dict[str, Any] = {}
 
 
 def init_master(master_root: str | Path) -> Path:
-    """Register Master_Pipeline root (imports use master_import_context)."""
+    """Register master/ root (actor_tagger, captioner, actors/)."""
     global _MASTER_ROOT, _imported
     root = Path(master_root).resolve()
     if not root.exists():
-        raise FileNotFoundError(f"Master pipeline root not found: {root}")
+        raise FileNotFoundError(
+            f"Master pipeline root not found: {root}\n"
+            "Expected Indic_video_pipeline/master/ (run setup or copy actors/)."
+        )
     _MASTER_ROOT = root
     _imported = True
     return root
@@ -31,7 +34,7 @@ def init_master(master_root: str | Path) -> Path:
 
 @contextmanager
 def master_import_context() -> Iterator[None]:
-    """Temporarily prioritize Master_Pipeline modules over indic `common` package."""
+    """Temporarily prioritize master/ modules over indic `common` package."""
     root = str(master_root())
     indic_root = str(Path(__file__).resolve().parent.parent)
     saved_path = sys.path[:]

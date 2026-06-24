@@ -1,0 +1,175 @@
+# v3 two-GPU + native MP4 caption (gemma4_dense via HuggingFace transformers).
+# s4/s5 still use vLLM; s8 feeds clip MP4s to Gemma4-31B (not vLLM).
+#
+# Run on GPUs separate from pipeline_v3_vllm_2gpu.yaml (e.g. 4,5 vs 2,3):
+#   CUDA_VISIBLE_DEVICES=4,5 bash scripts/run_v3_dense_video_2gpu.sh /path/to/movies_folder/
+#
+# Outputs go to v3_outputs_dense/ (won't clash with v3_outputs/ vLLM runs).
+
+pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
+outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs_dense
+models_root: /mnt/data0/harsha/new_dataset_pipeline/models
+
+output_layout: per_movie
+isolate_run_outputs: true
+
+workspaces_dir: workspaces
+logs_dir: logs
+reports_dir: reports
+
+prompt_pack:
+  zip_path: /mnt/data0/harsha/new_dataset_pipeline/zip_12buckets.zip
+
+export:
+  include_verdicts:
+    - FINAL
+    - REVIEW
+  export_clips: true
+  remove_watermark: false
+
+s2:
+  mode: score_only
+
+s1:
+  parallel_scene_chunks: 4
+  scene_chunk_overlap_sec: 15
+
+s4:
+  backend: vllm
+  caption_model: gemma4
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-4-31b-it
+  tensor_parallel_size: 1
+  gpu_ids: [0, 1]
+  batch_size: 8
+  max_tokens: 128
+
+s5:
+  backend: vllm
+  classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  vote_frames: 1
+  max_tokens: 128
+  tensor_parallel_size: 1
+  gpu_ids: [0, 1]
+  batch_size: 12
+  parallel: false
+
+s6:
+  mode: vlm
+
+ray:
+  enabled: true
+  num_cpus: 16
+  num_gpus: 2
+  parallel_clip_min: 2
+  chunk_size: 32
+  parallel_clip_export: true
+  parallel_motion: true
+  motion_workers: 2
+  parallel_dover: true
+  dover_workers: 2
+  parallel_gpu_classify: false
+  parallel_gpu_caption: true   # Ray: one HF Gemma4-dense replica per GPU for s8
+  parallel_gpu_verify: true
+  verify_workers: 2
+  parallel_actor_tag: true
+  actor_tag_workers: 2
+  parallel_clip_score: true
+  clip_score_workers: 2
+  parallel_motion_gpu: true
+  parallel_dover_gpu: true
+  parallel_frame_extract: true
+  frame_extract_workers: 8
+
+models_overrides:
+  vllm:
+    batch_size: 6
+    max_tokens: 1000
+    max_model_len: 8192
+    max_images_per_prompt: 3
+    tensor_parallel_size: 1
+    gpu_ids: [0, 1]
+  video_caption:
+    gpu_ids: [0, 1]
+    batch_size: 1
+    max_tokens: 1000
+    video_fps: 1.0
+    max_pixels: 201600
+  unimatch:
+    device: cuda:0
+  dover:
+    device: cuda:0
+  clip_model:
+    use_placeholder: false
+    gpu_ids: [0, 1]
+  gemma:
+    model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+    gpu_ids: [0, 1]
+    max_new_tokens: 128
+  vcinspector:
+    model_path: /mnt/data0/harsha/new_dataset_pipeline/models/VCInspector-7B
+
+captioner:
+  caption_model: gemma4_dense
+  backend: video
+  gpu_ids: [0, 1]
+  batch_size: 1
+  max_tokens: 1000
+  video_fps: 1.0
+  max_pixels: 201600
+  multi_frame: true
+  caption_all_clips: true
+  caption_format: prose
+  prompt_version: qwen_video_eros_v1
+
+s13:
+  enabled: true
+  conda_env: vcinspector
+  worker: scripts/vcinspector_worker.py
+  model_id: dipta007/VCInspector-7B
+  gpu_ids: [0]
+  batch_size: 1
+  video_max_pixels: 151200   # 360*420 per VCInspector README (native MP4)
+  fps: 1.0
+  fps_max_frames: 12
+  max_tokens: 256
+  include_verdicts:
+    - FINAL
+    - REVIEW
+
+services_order:
+  - s1
+  - s2
+  - s3
+  - s4
+  - s5
+  - s6
+  - s7
+  - s8
+  - s9
+  - s10
+  - s13
+  - s11
+  - s12
+
+movie_registry: data/movie_registry.csv
+
+master_pipeline:
+  root: master
+  classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
+  gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
+  actor_embeddings_dir: actors/actor_embeddings
+  yolo_face_model: yolov12n-face.pt
+  actor_similarity_threshold: 0.35
+  actor_similarity_margin: 0.10
+  actor_caption_min_similarity: 0.35
+  actor_caption_min_margin: 0.10
+  # actor_cast_filter / actor_gender_map omitted — match all 108 actor embeddings
+  classify_gpu_ids: [0, 1]
+  verify_gpu_ids: [0, 1]
+  actor_tag_gpu_id: 0
+  clip_gpu_ids: [0, 1]
+  caption_backend: video
+  prompts_dir: prompts
+  max_new_tokens: 128
+  auto_download_yolo: true

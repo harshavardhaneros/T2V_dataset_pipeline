@@ -159,6 +159,50 @@ def _fix_duplicate_actor_names(text: str, name: str, gender: Optional[str]) -> s
     return text
 
 
+# Gendered-attire cues: when a known-MALE actor's name sits right before female
+# attire (or vice-versa), the model applied the name to the wrong person.
+_FEMALE_ATTIRE = re.compile(
+    r"\b(saree|sari|lehenga|ghagra|choli|blouse|dupatta|bindi|jhumka|jhumki|"
+    r"mangalsutra|anklet|payal|nath|nose ring|maang tikka|bridal)\b",
+    re.IGNORECASE,
+)
+_MALE_ATTIRE = re.compile(
+    r"\b(sherwani|kurta pajama|dhoti|lungi|turban|pagri|safa)\b",
+    re.IGNORECASE,
+)
+
+
+def _fix_gender_attire_mismatch(text: str, name: str, gender: Optional[str]) -> str:
+    """Replace a name occurrence that is contradicted by gendered attire.
+
+    e.g. male actor "Shah Rukh Khan dressed in a saree" -> "A woman dressed in a
+    saree" (only that occurrence; correctly-gendered uses of the name are kept).
+    Uses the actor's KNOWN gender (face classifier) + the attire cue in the text.
+    """
+    if gender not in {"male", "female"}:
+        return text
+    mismatch = _FEMALE_ATTIRE if gender == "male" else _MALE_ATTIRE
+    other_cap = "A woman" if gender == "male" else "A man"
+    other_low = "a woman" if gender == "male" else "a man"
+    escaped = re.escape(name)
+    out: List[str] = []
+    last = 0
+    for m in re.finditer(rf"\b{escaped}(?:'s)?\b", text):
+        window = text[m.end(): m.end() + 60]
+        if not mismatch.search(window):
+            continue
+        prefix = text[last:m.start()].rstrip()
+        at_sentence_start = (m.start() == 0) or prefix.endswith((".", "!", "?", "\n")) or prefix == ""
+        repl = other_cap if at_sentence_start else other_low
+        if text[m.start():m.end()].endswith("'s"):
+            repl += "'s"
+        out.append(text[last:m.start()])
+        out.append(repl)
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out)
+
+
 def best_faces_for_caption(actors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Keep the highest-similarity face per actor slug."""
     best: Dict[str, Dict[str, Any]] = {}
@@ -357,6 +401,141 @@ def enforce_actor_names_in_caption(
     return text
 
 
+def _bbox_position(rec: Dict[str, Any], name: str) -> Optional[str]:
+    """left/center/right of the detected actor's face from its bbox."""
+    for a in rec.get("actors") or []:
+        if isinstance(a, dict) and a.get("display_name") == name and a.get("bbox"):
+            b = a["bbox"]
+            if len(b) < 4:
+                return None
+            try:
+                w = int(str(rec.get("crop_box") or "1920").split(":")[0])
+            except (ValueError, IndexError):
+                w = 1920
+            frac = (float(b[0]) + float(b[2])) / 2.0 / max(1, w)
+            return "left" if frac < 0.4 else "right" if frac > 0.6 else "center"
+    return None
+
+
+_POS_RE = re.compile(r"\b(left|right|cent(?:er|re)|middle)\b", re.IGNORECASE)
+# Connector that introduces a SECOND, distinct person right before a name.
+_SECOND_PERSON_LEAD = re.compile(
+    r"(?:to (?:his|her) (?:left|right)|on (?:the|his|her) (?:left|right)|beside|"
+    r"opposite|next to|alongside|facing|behind|in front of|approaches?|"
+    r"with|and|the other (?:man|woman))\s*,?\s*$",
+    re.IGNORECASE,
+)
+
+
+def _mention_position(text: str, start: int, end: int) -> Optional[str]:
+    """Position label tied to one name mention (prefers a cue just before it)."""
+    before = text[max(0, start - 34):start].lower()
+    cue = None
+    for m in _POS_RE.finditer(before):
+        cue = m.group(1)
+    if cue is None:
+        m = _POS_RE.search(text[start:end + 22].lower())
+        cue = m.group(1) if m else None
+    if cue is None:
+        return None
+    cue = cue.lower()
+    return "center" if cue in ("center", "centre", "middle") else cue
+
+
+def _fix_same_gender_overtag(
+    text: str, name: str, gender: Optional[str], rec: Dict[str, Any]
+) -> str:
+    """Same-gender over-tag: one actor detected but the name is applied to two
+    people. Keep the name only on the mention matching the detected bbox
+    position; rewrite the other distinct-person mention(s) to 'another man/woman'.
+    Conservative: requires a known bbox position AND a clear 2-person structure
+    AND at least one mention that matches the bbox position (the anchor)."""
+    bpos = _bbox_position(rec, name)
+    if bpos is None or gender not in {"male", "female"}:
+        return text
+    esc = re.escape(name)
+    if not re.search(
+        rf"(to (?:his|her) (?:left|right)|on the (?:left|right)|beside|opposite|"
+        rf"with {esc}|and {esc}|the other (?:man|woman))",
+        text,
+        re.IGNORECASE,
+    ):
+        return text
+    mentions = list(re.finditer(rf"\b{esc}\b", text))
+    if len(mentions) < 2:
+        return text
+    poses = [_mention_position(text, m.start(), m.end()) for m in mentions]
+    anchors = [i for i, p in enumerate(poses) if p == bpos]
+    if not anchors:
+        return text  # cannot anchor to the real person -> do nothing (safe)
+    other_cap = "A woman" if gender == "female" else "A man"
+    other_low = "a woman" if gender == "female" else "a man"
+    rewrite = []
+    for i, (m, p) in enumerate(zip(mentions, poses)):
+        if i in anchors:
+            continue
+        lead = text[max(0, m.start() - 24):m.start()]
+        if p is not None and p != bpos:
+            rewrite.append(i)                       # explicit contradicting position
+        elif _SECOND_PERSON_LEAD.search(lead):
+            rewrite.append(i)                       # introduced as a distinct person
+    for i in sorted(rewrite, reverse=True):
+        m = mentions[i]
+        prefix = text[:m.start()].rstrip()
+        cap = (m.start() == 0) or prefix.endswith((".", "!", "?", "\n")) or prefix == ""
+        text = text[:m.start()] + (other_cap if cap else other_low) + text[m.end():]
+    return text
+
+
+_OVERTAG_CONNECTOR = (
+    r"(?:and|with|beside|opposite|facing|next to|alongside|"
+    r"to (?:his|her) (?:left|right)|in front of|behind)"
+)
+
+
+def has_self_interaction_overtag(caption: str, rec: Dict[str, Any]) -> bool:
+    """High-precision detector for same-gender over-tagging: the SAME actor
+    name applied to two people interacting (you don't converse with yourself).
+    e.g. 'Shah Rukh Khan ... conversation with Shah Rukh Khan'. Only fires for
+    a single identified actor, so it can't misread a legit two-cast caption."""
+    names = actor_display_names(actors_for_caption_enforcement(rec))
+    if len(names) != 1:
+        return False
+    esc = re.escape(names[0])
+    pat = rf"\b{esc}\b.{{0,90}}\b{_OVERTAG_CONNECTOR}\b.{{0,15}}\b{esc}\b"
+    return re.search(pat, caption, re.IGNORECASE) is not None
+
+
+def fix_actor_gender_tagging(
+    caption: str,
+    rec: Dict[str, Any],
+    config: Dict[str, Any] | None = None,
+) -> str:
+    """Targeted tagging post-fix: correct ONLY gender/duplicate actor mis-tags
+    (name on wrong-gender person, 'Name and Name'). Unlike
+    enforce_actor_names_for_record it does NOT force generic phrases to actor
+    names, so the model's own caption style/quality is preserved.
+    """
+    names = actor_display_names(actors_for_caption_enforcement(rec))
+    if not names:
+        return caption
+    gmap = actor_gender_map_from_config(config)
+    text = caption
+    for nm in names:
+        g = _gender_for_actor_name(nm, rec, gmap)
+        text = _fix_duplicate_actor_names(text, nm, g)
+        text = _fix_gender_attire_mismatch(text, nm, g)
+    # Safe grammar normalization of the model's awkward "the another X".
+    text = re.sub(r"\bthe another\b", "the other", text)
+    text = re.sub(r"\bThe another\b", "The other", text)
+    # NOTE: same-gender over-tag (two men, one detected) is intentionally NOT
+    # auto-fixed here. Text rules either miss it (wrong person is the subject,
+    # no positional/gender cue) or corrupt correct multi-person captions. The
+    # robust fix is detection coverage at s7 (match the 2nd person), not text
+    # surgery. _fix_same_gender_overtag is kept for reference but unused.
+    return text
+
+
 def enforce_actor_names_for_record(
     caption: str,
     rec: Dict[str, Any],
@@ -375,4 +554,11 @@ def enforce_actor_names_for_record(
         gmap = actor_gender_map_from_config(config)
         g = _gender_for_actor_name(names[0], rec, gmap)
         text = _fix_duplicate_actor_names(text, names[0], g)
+        text = _fix_gender_attire_mismatch(text, names[0], g)
+    else:
+        # multi-actor: fix each named actor against gendered-attire contradictions
+        gmap = actor_gender_map_from_config(config)
+        for nm in names:
+            g = _gender_for_actor_name(nm, rec, gmap)
+            text = _fix_gender_attire_mismatch(text, nm, g)
     return text

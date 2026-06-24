@@ -41,6 +41,23 @@ def ray_worker_count(
     return gpu_actor_count(config, requested)
 
 
+def gpu_actor_fraction(config: Dict[str, Any]) -> float:
+    """Fraction of a GPU each Ray actor reserves. <1.0 packs multiple small
+    models onto one (large) GPU; the big cards run tiny motion/DOVER/verify
+    models, so packing overlaps their CPU/IO phases with GPU compute."""
+    rc = ray_settings(config)
+    try:
+        f = float(rc.get("gpu_actor_fraction", 1.0))
+    except (TypeError, ValueError):
+        return 1.0
+    return f if 0.0 < f <= 1.0 else 1.0
+
+
+def gpu_actor_options(config: Dict[str, Any]) -> Dict[str, Any]:
+    """kwargs for Actor.options(...) to honor the configured GPU fraction."""
+    return {"num_gpus": gpu_actor_fraction(config)}
+
+
 def parallel_gpu_map(
     config: Dict[str, Any],
     actor_cls: Any,

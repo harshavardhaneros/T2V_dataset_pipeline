@@ -13,6 +13,8 @@ from common.base_service import BaseService
 from common.progress import iter_progress
 from common.caption_text import prose_caption_for_export
 from common.clip_io import export_clip_mp4
+from common.clip_workers import export_clip_mp4_job
+from common.ray_pool import parallel_map, ray_enabled, ray_settings
 from common.review_clips import link_clip_under_export
 from common.metadata_manager import MetadataManager
 from common.video_files import find_movie_video
@@ -48,19 +50,53 @@ class ExportService(BaseService):
         source = self.movie_video or find_movie_video(self.movie_dir)
         clips_written = 0
         if source and export_cfg.get("export_clips", True):
-            for rec in iter_progress(exported, desc="s11 export clips", unit="clip"):
-                clip_out = clips_dir / f"{rec['clip_id']}.mp4"
-                if clip_out.exists() and not self.force:
-                    clips_written += 1
-                    continue
-                if export_clip_mp4(
-                    source,
-                    rec,
-                    clip_out,
-                    export_cfg=export_cfg,
-                    thresholds=self.config.get("thresholds"),
-                ):
-                    clips_written += 1
+            thresholds = self.config.get("thresholds")
+            rc = ray_settings(self.config)
+            parallel_export = bool(
+                rc.get("parallel_clip_export", ray_enabled(self.config))
+            )
+            min_parallel = int(rc.get("parallel_clip_min", 4))
+
+            # Existing clips (already cut by s2/s8 via the same export_cfg) are
+            # reused by default — the worker skips any clip that already exists.
+            # Set export.force_reencode_clips: true to force a fresh re-encode
+            # (e.g. after changing export_cfg); combined with --force it drops
+            # the old targets first so workers regenerate them in parallel.
+            if self.force and bool(export_cfg.get("force_reencode_clips", False)):
+                for rec in exported:
+                    clip_out = clips_dir / f"{rec['clip_id']}.mp4"
+                    if clip_out.exists():
+                        try:
+                            clip_out.unlink()
+                        except OSError:
+                            pass
+
+            jobs = [
+                {
+                    "record": rec,
+                    "video_path": str(source),
+                    "clip_path": str(clips_dir / f"{rec['clip_id']}.mp4"),
+                    "export_cfg": export_cfg,
+                    "thresholds": thresholds,
+                }
+                for rec in exported
+            ]
+            if parallel_export and len(jobs) >= min_parallel:
+                results = parallel_map(
+                    self.config,
+                    export_clip_mp4_job,
+                    jobs,
+                    label="s11 export clips",
+                    min_items=min_parallel,
+                )
+            else:
+                results = [
+                    export_clip_mp4_job(job)
+                    for job in iter_progress(
+                        jobs, desc="s11 export clips", unit="clip"
+                    )
+                ]
+            clips_written = sum(1 for r in results if r)
 
         with open(captions_jsonl, "w", encoding="utf-8") as f:
             for rec in exported:
@@ -75,6 +111,8 @@ class ExportService(BaseService):
                     "verdict": rec.get("verdict", ""),
                     "final_score": rec.get("final_score", 0),
                     "clip_actors": rec.get("clip_actors", []),
+                    "caption_verify_score": rec.get("caption_verify_score"),
+                    "caption_verify_pass": rec.get("caption_verify_pass"),
                 }
                 f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
@@ -85,6 +123,9 @@ class ExportService(BaseService):
             "pos_f1", "pos_f2", "pos_f3",
             "frame1", "frame2", "frame3",
             "caption",
+            "caption_verify_score",
+            "caption_verify_pass",
+            "caption_verify_explanation",
             "clip_mp4",
         ]
         with open(captions_csv, "w", newline="", encoding="utf-8") as f:

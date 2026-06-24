@@ -36,7 +36,7 @@ services_order:
 movie_registry: data/movie_registry.csv
 
 master_pipeline:
-  root: /mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset
+  root: master
   vlm_model_name: Qwen3-VL-32B
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-32B-Instruct
   gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-27b-it

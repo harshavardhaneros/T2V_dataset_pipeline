@@ -109,7 +109,7 @@ Indic_video_pipeline/          # code, configs, services (no logs/jsonl here)
     workspaces/<video_id>/     # metadata.jsonl, export/, actor_frames/
     logs/s1..s12/
     reports/
-  Master_Pipeline_t2i_dataset/ # actor_tagger + actor_embeddings/
+  master/                      # actor_tagger, captioner, actor_embeddings/
 ```
 
 ## Setup
@@ -152,4 +152,4 @@ python run_pipeline.py \
 | runtime logs | `pipeline_outputs/logs/s*/` |
 | reports | `pipeline_outputs/reports/` |
 
-Actor embeddings: `Master_Pipeline_t2i_dataset/actors/actor_embeddings/` (108 actors).
+Actor embeddings: `master/actors/actor_embeddings/` (108 actors).

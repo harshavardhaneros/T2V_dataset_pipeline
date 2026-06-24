@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from common.base_service import ensure_path_on_syspath, load_yaml
 from common.paths import logs_dir, outputs_root, reports_dir, service_log_dir, workspaces_dir
 from common.run_output import init_run_output, run_output_enabled
-from common.video_files import find_movie_video
+from common.video_files import find_movie_video, list_movie_videos
 from common.prompt_manager import PromptManager
 from common.runtime_tracker import (
     append_runtime_summary,
@@ -26,7 +26,7 @@ from common.runtime_tracker import (
     merge_service_timings,
     write_pipeline_runtime_json,
 )
-from common.service_registry import get_service_class
+from common.service_registry import SERVICE_MODULES, get_service_class
 
 
 def pipeline_root() -> Path:
@@ -54,8 +54,9 @@ def load_config(root: Path, pipeline_yaml: str = "pipeline.yaml") -> Dict[str, A
     mp = pipeline.get("master_pipeline", {})
     if mp.get("root"):
         from common.master_bridge import init_master
+        from common.paths import master_pipeline_root
 
-        init_master(mp["root"])
+        init_master(master_pipeline_root(cfg))
     return cfg
 
 
@@ -168,7 +169,7 @@ def run_services_for_movie(
         merged_timings = merge_service_timings(log_timings, timings)
         merged_results = merge_service_results(log_results, service_results)
         total_service_seconds = sum(
-            merged_timings.get(f"s{i}", 0) for i in range(1, 13)
+            merged_timings.get(sid, 0) for sid in service_order
         )
         is_partial = bool(ran_from and ran_from != service_order[0]) or bool(
             ran_to and ran_to != service_order[-1]
@@ -216,6 +217,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Indic Video Dataset Pipeline")
     parser.add_argument("--config", type=str, default="pipeline.yaml", help="Config under configs/ e.g. pipeline_v2.yaml")
     parser.add_argument("--movie", type=str, help="Path to a single movie file")
+    parser.add_argument(
+        "--movies-dir",
+        type=str,
+        help="Directory containing movie files — run pipeline on each video (sorted by name)",
+    )
     parser.add_argument("--movie-registry", type=str, help="CSV registry for batch run")
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers (registry mode)")
     parser.add_argument("--from-step", type=str, default=None, help="Resume from service id e.g. s5")
@@ -261,10 +267,12 @@ def main() -> int:
     config = load_config(root, args.config)
     if args.outputs_root:
         config["pipeline"]["outputs_root"] = args.outputs_root
+    service_order = config["pipeline"].get("services_order", list(SERVICE_MODULES.keys()))
     out = outputs_root(config)
     if not run_output_enabled(config):
-        for i in range(1, 13):
-            (logs_dir(config) / f"s{i}").mkdir(parents=True, exist_ok=True)
+        for sid in service_order:
+            if sid in SERVICE_MODULES:
+                (logs_dir(config) / sid).mkdir(parents=True, exist_ok=True)
         reports_dir(config).mkdir(parents=True, exist_ok=True)
         workspaces_dir(config).mkdir(parents=True, exist_ok=True)
     print(f"Outputs root: {out}")
@@ -280,10 +288,8 @@ def main() -> int:
         if args.max_clips:
             print(f"[test] max_clips={args.max_clips}, time_offset={args.time_offset}s")
 
-    service_order = config["pipeline"].get("services_order", [f"s{i}" for i in range(1, 13)])
-
-    if not args.movie and not args.movie_registry:
-        parser.error("Provide --movie or --movie-registry")
+    if not args.movie and not args.movies_dir and not args.movie_registry:
+        parser.error("Provide --movie, --movies-dir, or --movie-registry")
 
     def _prepare_run(movie_path: Path, video_id: Optional[str]) -> Path:
         vid = video_id or movie_path.stem
@@ -344,6 +350,31 @@ def main() -> int:
             print(f"Pipeline complete. Output: {config['_run']['root']}")
         else:
             print(f"Pipeline complete: {movie_dir}")
+        return 0
+
+    if args.movies_dir:
+        movies_dir = Path(args.movies_dir)
+        movies = list_movie_videos(movies_dir)
+        if not movies:
+            print(f"No video files found in {movies_dir}", file=sys.stderr)
+            return 1
+        print(f"Found {len(movies)} movie(s) in {movies_dir}")
+        failed: List[str] = []
+        for idx, movie_path in enumerate(movies, start=1):
+            vid = args.video_id if len(movies) == 1 and args.video_id else movie_path.stem
+            print(f"\n{'=' * 60}\n[{idx}/{len(movies)}] {vid}\n{'=' * 60}")
+            try:
+                movie_dir = _prepare_run(movie_path, vid)
+                run_services_for_movie(
+                    movie_dir, config, root, args.from_step, args.to_step, args.force, service_order
+                )
+                print(f"Pipeline complete: {movie_dir}")
+            except Exception as exc:
+                failed.append(vid)
+                print(f"Failed {vid}: {exc}", file=sys.stderr)
+        if failed:
+            print(f"Batch finished with failures: {', '.join(failed)}", file=sys.stderr)
+            return 1
         return 0
 
     registry_path = root / args.movie_registry if not Path(args.movie_registry).is_absolute() else Path(args.movie_registry)

@@ -1,4 +1,4 @@
-"""Caption model catalog — switch qwen2.5 / qwen3 / gemma3 / gemma4 per run."""
+"""Caption model catalog — switch caption models and backends per run."""
 
 from __future__ import annotations
 
@@ -24,6 +24,14 @@ CAPTION_MODEL_ALIASES: Dict[str, str] = {
     "gemma-4": "gemma4",
     "gemma4-31b": "gemma4",
     "gemma-4-31b-it": "gemma4",
+    "gemma4_dense": "gemma4_dense",
+    "gemma4-dense": "gemma4_dense",
+    "gemma-4-31b-dense": "gemma4_dense",
+    "qwen3.5": "qwen3.5",
+    "qwen3_5": "qwen3.5",
+    "qwen-3.5": "qwen3.5",
+    "qwen35": "qwen3.5",
+    "qwen3.5-27b": "qwen3.5",
 }
 
 
@@ -67,7 +75,33 @@ CAPTION_MODEL_SPECS: Dict[str, Dict[str, str]] = {
         "dir_name": "gemma-4-31b-it",
         "hf_repo": "google/gemma-4-31B-it",
     },
+    "gemma4_dense": {
+        "label": "Gemma-4-31B-Dense-IT",
+        "family": "gemma",
+        "default_backend": "video",
+        "dir_name": "gemma-4-31b-dense",
+        "hf_repo": "google/gemma-4-31B-it",
+    },
+    "qwen3.5": {
+        "label": "Qwen3.5-27B",
+        "family": "qwen35",
+        "default_backend": "video",
+        "dir_name": "Qwen3.5-27B",
+        "hf_repo": "Qwen/Qwen3.5-27B",
+    },
 }
+
+
+def normalize_caption_backend(raw: str) -> str:
+    """Normalize backend aliases (video clip input vs frame/vllm backends)."""
+    backend = (raw or "").strip().lower()
+    # Native video clips fed to vLLM (fast path for gemma4_dense).
+    if backend in {"vllm_video", "video_vllm", "vllm-video", "native_vllm_video"}:
+        return "vllm_video"
+    # Native video clips fed to HuggingFace .generate() (slow path).
+    if backend in {"qwen_video", "video_clip", "mp4", "native_mp4", "native_video"}:
+        return "video"
+    return backend
 
 
 def normalize_caption_model_key(raw: str) -> str:
@@ -81,10 +115,14 @@ def normalize_caption_model_key(raw: str) -> str:
 
 def _infer_key_from_path(path: Path) -> str | None:
     name = path.name.lower()
+    if "qwen3.5" in name or "qwen3_5" in name or "qwen35" in name:
+        return "qwen3.5"
     if "qwen3" in name:
         return "qwen3"
     if "qwen2.5" in name or "qwen2_5" in name:
         return "qwen2.5"
+    if "dense" in name and ("gemma-4" in name or "gemma4" in name):
+        return "gemma4_dense"
     if "gemma-4" in name or "gemma4" in name:
         return "gemma4"
     if "gemma-3" in name or "gemma3" in name:
@@ -110,7 +148,9 @@ def resolve_caption_model(config: Dict[str, Any]) -> CaptionModelSpec:
     else:
         model_path = root / spec["dir_name"]
 
-    backend = pcfg.get("backend") or spec["default_backend"]
+    backend = normalize_caption_backend(
+        pcfg.get("backend") or spec["default_backend"]
+    )
     return CaptionModelSpec(
         key=key,
         label=spec["label"],

@@ -1,0 +1,2047 @@
+{
+  "threshold": 0.35,
+  "dry_run": false,
+  "results": [
+    {
+      "actor": "Ashish_Vidyarthi",
+      "total": 46,
+      "kept": 43,
+      "removed": 3,
+      "no_face": 1,
+      "wrong_person": 2,
+      "consensus_img": "20.jpg",
+      "consensus_avg_sim": 0.6353297829627991,
+      "skipped": false,
+      "removed_files": [
+        "3.jpg",
+        "35.jpg",
+        "15.jpg"
+      ]
+    },
+    {
+      "actor": "Joseph_Vijay",
+      "total": 50,
+      "kept": 45,
+      "removed": 5,
+      "no_face": 0,
+      "wrong_person": 5,
+      "consensus_img": "4.jpg",
+      "consensus_avg_sim": 0.6464729309082031,
+      "skipped": false,
+      "removed_files": [
+        "28.jpg",
+        "40.jpg",
+        "3.jpg",
+        "19.jpg",
+        "33.jpg"
+      ]
+    },
+    {
+      "actor": "Namitha",
+      "total": 50,
+      "kept": 48,
+      "removed": 2,
+      "no_face": 1,
+      "wrong_person": 1,
+      "consensus_img": "18.jpg",
+      "consensus_avg_sim": 0.6679994463920593,
+      "skipped": false,
+      "removed_files": [
+        "29.jpg",
+        "2.jpg"
+      ]
+    },
+    {
+      "actor": "Sayaji_Shinde",
+      "total": 46,
+      "kept": 41,
+      "removed": 5,
+      "no_face": 2,
+      "wrong_person": 3,
+      "consensus_img": "2.jpg",
+      "consensus_avg_sim": 0.6903018951416016,
+      "skipped": false,
+      "removed_files": [
+        "46.jpg",
+        "22.jpg",
+        "29.jpg",
+        "21.jpg",
+        "37.jpg"
+      ]
+    },
+    {
+      "actor": "Shriya_Saran",
+      "total": 49,
+      "kept": 46,
+      "removed": 3,
+      "no_face": 1,
+      "wrong_person": 2,
+      "consensus_img": "45.jpg",
+      "consensus_avg_sim": 0.6449124217033386,
+      "skipped": false,
+      "removed_files": [
+        "34.jpg",
+        "44.jpg",
+        "7.jpg"
+      ]
+    },
+    {
+      "actor": "aamir_khan",
+      "total": 29,
+      "kept": 22,
+      "removed": 7,
+      "no_face": 1,
+      "wrong_person": 6,
+      "consensus_img": "727d7ed9df.jpg",
+      "consensus_avg_sim": 0.5418366193771362,
+      "skipped": false,
+      "removed_files": [
+        "10b9064e35.jpg",
+        "2b8a575fec.jpg",
+        "ce379746a4.jpg",
+        "35cbea291a.jpg",
+        "04a42fe703.jpg",
+        "9a7279d055.jpg",
+        "88504fb80a.jpg"
+      ]
+    },
+    {
+      "actor": "abhishek_bachchan",
+      "total": 29,
+      "kept": 12,
+      "removed": 17,
+      "no_face": 1,
+      "wrong_person": 16,
+      "consensus_img": "78aa95c8c0.jpg",
+      "consensus_avg_sim": 0.31120386719703674,
+      "skipped": false,
+      "removed_files": [
+        "14cd5d8b7d.jpg",
+        "e021ad33ab.jpg",
+        "0cc59934ee.jpg",
+        "774c30e2d1.jpg",
+        "b9fde49a91.jpg",
+        "3769a7ac67.jpg",
+        "d489c4826e.jpg",
+        "a3f775d134.jpg",
+        "c1a105987c.jpg",
+        "563f289aa3.jpg",
+        "7f8b7f2811.jpg",
+        "9c2684a16f.jpg",
+        "18b55001c5.jpg",
+        "efb8f1e33b.jpg",
+        "8d0a31fccb.jpg",
+        "4839dedb07.jpg",
+        "745786b4b2.jpg"
+      ]
+    },
+    {
+      "actor": "aishwarya_rai",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 4,
+      "wrong_person": 2,
+      "consensus_img": "7e9a9876ba.jpg",
+      "consensus_avg_sim": 0.5608030557632446,
+      "skipped": false,
+      "removed_files": [
+        "d486c320dc.jpg",
+        "0caa0b1bd9.jpg",
+        "080b5ac739.jpg",
+        "27429a1cbd.jpg",
+        "ad85f7a72f.jpg",
+        "c4cb7f999f.jpg"
+      ]
+    },
+    {
+      "actor": "ajay_devgn",
+      "total": 27,
+      "kept": 19,
+      "removed": 8,
+      "no_face": 1,
+      "wrong_person": 7,
+      "consensus_img": "edd55e6ec8.jpg",
+      "consensus_avg_sim": 0.4952245354652405,
+      "skipped": false,
+      "removed_files": [
+        "8f26afa370.jpg",
+        "91afba6dac.jpg",
+        "d8d4c5fd8c.jpg",
+        "1bdc7e733d.jpg",
+        "c79d9908b4.jpg",
+        "043c2bba18.jpg",
+        "478e39f87b.jpg",
+        "0dff6d3b98.jpg"
+      ]
+    },
+    {
+      "actor": "ajith_kumar",
+      "total": 21,
+      "kept": 16,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "06e2d3d9c0.jpg",
+      "consensus_avg_sim": 0.4669725000858307,
+      "skipped": false,
+      "removed_files": [
+        "0214de2902.jpg",
+        "1773f3523b.jpg",
+        "1697b9a4b0.jpg",
+        "565932656b.jpg",
+        "7e20aeefa7.jpg"
+      ]
+    },
+    {
+      "actor": "akshay_kumar",
+      "total": 27,
+      "kept": 16,
+      "removed": 11,
+      "no_face": 4,
+      "wrong_person": 7,
+      "consensus_img": "ca87e2add3.jpg",
+      "consensus_avg_sim": 0.4489142894744873,
+      "skipped": false,
+      "removed_files": [
+        "751c4f2a48.jpg",
+        "db1ac42b3e.jpg",
+        "a652d8860f.jpg",
+        "b85cf60cd4.jpg",
+        "c45c8a1ae8.jpg",
+        "54ec6e9d6c.jpg",
+        "9b46d0f47c.jpg",
+        "02abd2a383.jpg",
+        "69d49c47a0.jpg",
+        "a57b561cf1.jpg",
+        "f7152b05e6.jpg"
+      ]
+    },
+    {
+      "actor": "alia_bhatt",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 1,
+      "wrong_person": 5,
+      "consensus_img": "e8e34519f0.jpg",
+      "consensus_avg_sim": 0.5594011545181274,
+      "skipped": false,
+      "removed_files": [
+        "508c3697ec.jpg",
+        "9e4c9c248a.jpg",
+        "1be9729584.jpg",
+        "6a181bdc2f.jpg",
+        "8b19882cbe.jpg",
+        "c510ad6fea.jpg"
+      ]
+    },
+    {
+      "actor": "allu_arjun",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 1,
+      "wrong_person": 8,
+      "consensus_img": "03765b8d20.jpg",
+      "consensus_avg_sim": 0.48829391598701477,
+      "skipped": false,
+      "removed_files": [
+        "b3381d2a17.jpg",
+        "3cc4549e16.jpg",
+        "46f87e8e18.jpg",
+        "d9650f80dd.jpg",
+        "5dfd9bde82.jpg",
+        "a050f0dd57.jpg",
+        "c54d122ead.jpg",
+        "43994a5bc2.jpg",
+        "362bb864c5.jpg"
+      ]
+    },
+    {
+      "actor": "amitabh_bachchan",
+      "total": 29,
+      "kept": 18,
+      "removed": 11,
+      "no_face": 3,
+      "wrong_person": 8,
+      "consensus_img": "d533e5c5ae.jpg",
+      "consensus_avg_sim": 0.4572966694831848,
+      "skipped": false,
+      "removed_files": [
+        "542c4cc332.jpg",
+        "836992847d.jpg",
+        "8c4182f25c.jpg",
+        "ca3d089cbb.jpg",
+        "83bfe3b780.jpg",
+        "7f8b7f2811.jpg",
+        "bef818ba72.jpg",
+        "0cc59934ee.jpg",
+        "1ed22f6ec6.jpg",
+        "95e08311a5.jpg",
+        "b88bc2b924.jpg"
+      ]
+    },
+    {
+      "actor": "anil_kapoor",
+      "total": 26,
+      "kept": 21,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "282258f713.jpg",
+      "consensus_avg_sim": 0.6443977355957031,
+      "skipped": false,
+      "removed_files": [
+        "604bae3ec1.jpg",
+        "948edd85f7.jpg",
+        "e2db5f7cff.jpg",
+        "1e94533631.jpg",
+        "8cb9e42333.jpg"
+      ]
+    },
+    {
+      "actor": "anupam_kher",
+      "total": 20,
+      "kept": 19,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "6c0bdf106e.jpg",
+      "consensus_avg_sim": 0.6579177975654602,
+      "skipped": false,
+      "removed_files": [
+        "cfb8b804de.jpg"
+      ]
+    },
+    {
+      "actor": "anushka_sharma",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "40b499ffee.jpg",
+      "consensus_avg_sim": 0.5098410844802856,
+      "skipped": false,
+      "removed_files": [
+        "ff0013b3d4.jpg",
+        "ec23dbe650.jpg",
+        "e114e6d09d.jpg",
+        "99205bbe7a.jpg",
+        "1e451f7909.jpg",
+        "a1342de346.jpg"
+      ]
+    },
+    {
+      "actor": "anushka_shetty",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 3,
+      "wrong_person": 5,
+      "consensus_img": "ef126f06a1.jpg",
+      "consensus_avg_sim": 0.5360661149024963,
+      "skipped": false,
+      "removed_files": [
+        "5add47297e.jpg",
+        "003465aede.jpg",
+        "ff0013b3d4.jpg",
+        "2d279b7a17.jpg",
+        "d1cbed8343.jpg",
+        "1051e0dd2a.jpg",
+        "bee26df968.jpg",
+        "e6e53328d5.jpg"
+      ]
+    },
+    {
+      "actor": "arjun_kapoor",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 0,
+      "wrong_person": 4,
+      "consensus_img": "cd706436e7.jpg",
+      "consensus_avg_sim": 0.6174345016479492,
+      "skipped": false,
+      "removed_files": [
+        "c54d122ead.jpg",
+        "3b93e8d73b.jpg",
+        "280b1f2b4f.jpg",
+        "b804294efb.jpg"
+      ]
+    },
+    {
+      "actor": "ashish_vidyarthi",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 0,
+      "wrong_person": 9,
+      "consensus_img": "68010d72e9.jpg",
+      "consensus_avg_sim": 0.5003677606582642,
+      "skipped": false,
+      "removed_files": [
+        "0fd5b83e25.jpg",
+        "160067f5e1.jpg",
+        "0bde4a7f8d.jpg",
+        "2bf0c6fa09.jpg",
+        "520f4544ce.jpg",
+        "20cda6c0f3.jpg",
+        "f1d4475c4b.jpg",
+        "f80b1317db.jpg",
+        "9f42f7a6f6.jpg"
+      ]
+    },
+    {
+      "actor": "ayushmann_khurrana",
+      "total": 27,
+      "kept": 25,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "ef6ab9c6e8.jpg",
+      "consensus_avg_sim": 0.664619505405426,
+      "skipped": false,
+      "removed_files": [
+        "796cf456df.jpg",
+        "a6cf65e1aa.jpg"
+      ]
+    },
+    {
+      "actor": "bobby_deol",
+      "total": 26,
+      "kept": 18,
+      "removed": 8,
+      "no_face": 4,
+      "wrong_person": 4,
+      "consensus_img": "ab54efea72.jpg",
+      "consensus_avg_sim": 0.5718973278999329,
+      "skipped": false,
+      "removed_files": [
+        "9f5d859b04.jpg",
+        "3714a25c62.jpg",
+        "0e4d7f17a2.jpg",
+        "d6a29171ca.jpg",
+        "40db533287.jpg",
+        "5ff7084a8e.jpg",
+        "d991241989.jpg",
+        "f2252f076a.jpg"
+      ]
+    },
+    {
+      "actor": "boman_irani",
+      "total": 28,
+      "kept": 24,
+      "removed": 4,
+      "no_face": 0,
+      "wrong_person": 4,
+      "consensus_img": "dfbeb06734.jpg",
+      "consensus_avg_sim": 0.5692477822303772,
+      "skipped": false,
+      "removed_files": [
+        "fe8325405f.jpg",
+        "b009749912.jpg",
+        "35590bf6a4.jpg",
+        "dbc03504b2.jpg"
+      ]
+    },
+    {
+      "actor": "chiranjeevi",
+      "total": 24,
+      "kept": 22,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "4dd8694c27.jpg",
+      "consensus_avg_sim": 0.6382786631584167,
+      "skipped": false,
+      "removed_files": [
+        "a60c3b9db8.jpg",
+        "307b062507.jpg"
+      ]
+    },
+    {
+      "actor": "darshan",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 0,
+      "wrong_person": 9,
+      "consensus_img": "c7deddf66c.jpg",
+      "consensus_avg_sim": 0.4763648211956024,
+      "skipped": false,
+      "removed_files": [
+        "f3e353fe46.jpg",
+        "e8b1199947.jpg",
+        "799253ad1d.jpg",
+        "39df80d12a.jpg",
+        "b832485161.jpg",
+        "9063e173f3.jpg",
+        "1f983a1d4c.jpg",
+        "4e3f481abb.jpg",
+        "0438e0b2df.jpg"
+      ]
+    },
+    {
+      "actor": "deepika_padukone",
+      "total": 32,
+      "kept": 19,
+      "removed": 13,
+      "no_face": 6,
+      "wrong_person": 7,
+      "consensus_img": "2ce96ee3f3.jpg",
+      "consensus_avg_sim": 0.5266152024269104,
+      "skipped": false,
+      "removed_files": [
+        "9e664f3d2d.jpg",
+        "ea5e80d7d8.jpg",
+        "1f56345f8e.jpg",
+        "8d2b068c26.jpg",
+        "e0c78edf4f.jpg",
+        "af7525c3e4.jpg",
+        "a3da3156e2.jpg",
+        "1181a35660.jpg",
+        "14655d3223.jpg",
+        "14e973d904.jpg",
+        "1d76cf7abe.jpg",
+        "3f08006e99.jpg",
+        "5149b8b9b4.jpg"
+      ]
+    },
+    {
+      "actor": "dhanush",
+      "total": 29,
+      "kept": 23,
+      "removed": 6,
+      "no_face": 1,
+      "wrong_person": 5,
+      "consensus_img": "257a787250.jpg",
+      "consensus_avg_sim": 0.557490885257721,
+      "skipped": false,
+      "removed_files": [
+        "0b74397abf.jpg",
+        "3338302c65.jpg",
+        "e74a9d776a.jpg",
+        "7eae0e0b32.jpg",
+        "496bd9cd57.jpg",
+        "696e705d0d.jpg"
+      ]
+    },
+    {
+      "actor": "disha_patani",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 0,
+      "wrong_person": 4,
+      "consensus_img": "0c74bc1021.jpg",
+      "consensus_avg_sim": 0.5218322277069092,
+      "skipped": false,
+      "removed_files": [
+        "a31a9a6b02.jpg",
+        "aec525554a.jpg",
+        "f6c1cfe7f9.jpg",
+        "87640b0a91.jpg"
+      ]
+    },
+    {
+      "actor": "dulquer_salmaan",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 2,
+      "wrong_person": 5,
+      "consensus_img": "aefbdd7274.jpg",
+      "consensus_avg_sim": 0.5867685079574585,
+      "skipped": false,
+      "removed_files": [
+        "336b98ca76.jpg",
+        "a722dbd36d.jpg",
+        "e742a93602.jpg",
+        "bdb0f699d0.jpg",
+        "c96e3f80b1.jpg",
+        "6ff0b82a75.jpg",
+        "75cc93f7ed.jpg"
+      ]
+    },
+    {
+      "actor": "fahadh_faasil",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 2,
+      "wrong_person": 4,
+      "consensus_img": "bcdf4dc814.jpg",
+      "consensus_avg_sim": 0.6165540814399719,
+      "skipped": false,
+      "removed_files": [
+        "252d9d3ac4.jpg",
+        "84d4aafabd.jpg",
+        "13b2b882e3.jpg",
+        "3d4688c78a.jpg",
+        "91f87effc0.jpg",
+        "ef32754120.jpg"
+      ]
+    },
+    {
+      "actor": "govinda",
+      "total": 28,
+      "kept": 22,
+      "removed": 6,
+      "no_face": 2,
+      "wrong_person": 4,
+      "consensus_img": "7559cbfb34.jpg",
+      "consensus_avg_sim": 0.5543781518936157,
+      "skipped": false,
+      "removed_files": [
+        "388d9e9202.jpg",
+        "f1ff288888.jpg",
+        "770e88752a.jpg",
+        "d3260f2b2c.jpg",
+        "5f9296381d.jpg",
+        "9d5e73b242.jpg"
+      ]
+    },
+    {
+      "actor": "hema_malini",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 2,
+      "wrong_person": 2,
+      "consensus_img": "fd4d2b03fa.jpg",
+      "consensus_avg_sim": 0.5653128027915955,
+      "skipped": false,
+      "removed_files": [
+        "bb42ab40be.jpg",
+        "ecee116b10.jpg",
+        "5eb90d6d64.jpg",
+        "a1350af8d5.jpg"
+      ]
+    },
+    {
+      "actor": "hrithik_roshan",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 1,
+      "wrong_person": 7,
+      "consensus_img": "4254b0240a.jpg",
+      "consensus_avg_sim": 0.5158708095550537,
+      "skipped": false,
+      "removed_files": [
+        "c48a78a38a.jpg",
+        "071dd73f63.jpg",
+        "746c453ca1.jpg",
+        "1f6b92d34e.jpg",
+        "d21f14b130.jpg",
+        "74a511cebb.jpg",
+        "90dc2eee82.jpg",
+        "d88e9da79e.jpg"
+      ]
+    },
+    {
+      "actor": "irrfan_khan",
+      "total": 30,
+      "kept": 25,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "536106f1d5.jpg",
+      "consensus_avg_sim": 0.6327522397041321,
+      "skipped": false,
+      "removed_files": [
+        "09316bd277.jpg",
+        "b9a03c2ad8.jpg",
+        "3cda05f8b6.jpg",
+        "beae4b8d52.jpg",
+        "c269135b6a.jpg"
+      ]
+    },
+    {
+      "actor": "janhvi_kapoor",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 2,
+      "wrong_person": 2,
+      "consensus_img": "3bb2639070.jpg",
+      "consensus_avg_sim": 0.611529529094696,
+      "skipped": false,
+      "removed_files": [
+        "7677b69dcf.jpg",
+        "808346e053.jpg",
+        "934aa9ea08.jpg",
+        "d48ba2a8d7.jpg"
+      ]
+    },
+    {
+      "actor": "john_abraham",
+      "total": 23,
+      "kept": 22,
+      "removed": 1,
+      "no_face": 1,
+      "wrong_person": 0,
+      "consensus_img": "5dd616516b.jpg",
+      "consensus_avg_sim": 0.6338263750076294,
+      "skipped": false,
+      "removed_files": [
+        "f30cc37646.jpg"
+      ]
+    },
+    {
+      "actor": "juhi_chawla",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 2,
+      "wrong_person": 6,
+      "consensus_img": "30cefa96e6.jpg",
+      "consensus_avg_sim": 0.46520859003067017,
+      "skipped": false,
+      "removed_files": [
+        "eca9078b37.jpg",
+        "d4b088942c.jpg",
+        "b9e92bec6d.jpg",
+        "44561830cd.jpg",
+        "95e5e732e9.jpg",
+        "7e698d804a.jpg",
+        "36459c1b35.jpg",
+        "d70e5a8905.jpg"
+      ]
+    },
+    {
+      "actor": "jyothika",
+      "total": 28,
+      "kept": 22,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "dc9c6a7507.jpg",
+      "consensus_avg_sim": 0.5250983834266663,
+      "skipped": false,
+      "removed_files": [
+        "f885ae1fca.jpg",
+        "b739f81092.jpg",
+        "13913d0ced.jpg",
+        "1c563fed89.jpg",
+        "bcc9deb1b5.jpg",
+        "ec2b63a06d.jpg"
+      ]
+    },
+    {
+      "actor": "kajal_aggarwal",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 6,
+      "wrong_person": 1,
+      "consensus_img": "e6d607fa49.jpg",
+      "consensus_avg_sim": 0.6235606670379639,
+      "skipped": false,
+      "removed_files": [
+        "6c7045c827.jpg",
+        "57dcce2421.jpg",
+        "7c67825501.jpg",
+        "8eb21b4d38.jpg",
+        "af3d4ab659.jpg",
+        "d719ed3348.jpg",
+        "ee882a3eaf.jpg"
+      ]
+    },
+    {
+      "actor": "kajol",
+      "total": 29,
+      "kept": 24,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "16b48c3b7f.jpg",
+      "consensus_avg_sim": 0.5936870574951172,
+      "skipped": false,
+      "removed_files": [
+        "0156c3a14b.jpg",
+        "6bbae0b956.jpg",
+        "f1c94ff1f1.jpg",
+        "a529b28d81.jpg",
+        "eac73c1c56.jpg"
+      ]
+    },
+    {
+      "actor": "kamal_haasan",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 3,
+      "wrong_person": 6,
+      "consensus_img": "c66bff11fb.jpg",
+      "consensus_avg_sim": 0.5516872406005859,
+      "skipped": false,
+      "removed_files": [
+        "772d4b3dd1.jpg",
+        "72b5ea50ec.jpg",
+        "939373f9ff.jpg",
+        "927d9fe219.jpg",
+        "00357cccb3.jpg",
+        "94c5b47f4f.jpg",
+        "247969f296.jpg",
+        "3d550fbd83.jpg",
+        "4fbe5e8642.jpg"
+      ]
+    },
+    {
+      "actor": "kangana_ranaut",
+      "total": 29,
+      "kept": 24,
+      "removed": 5,
+      "no_face": 0,
+      "wrong_person": 5,
+      "consensus_img": "341b5e9d15.jpg",
+      "consensus_avg_sim": 0.5216012597084045,
+      "skipped": false,
+      "removed_files": [
+        "c8ff03b9ca.jpg",
+        "a864065285.jpg",
+        "2371c059c3.jpg",
+        "1fa4cdf1b0.jpg",
+        "6996226b89.jpg"
+      ]
+    },
+    {
+      "actor": "kareena_kapoor",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 5,
+      "wrong_person": 1,
+      "consensus_img": "710dc5b276.jpg",
+      "consensus_avg_sim": 0.7224664092063904,
+      "skipped": false,
+      "removed_files": [
+        "333e4a1303.jpg",
+        "5952e95b84.jpg",
+        "8878b750aa.jpg",
+        "b95880a330.jpg",
+        "daadc55542.jpg",
+        "f9ce8a84da.jpg"
+      ]
+    },
+    {
+      "actor": "karthi",
+      "total": 29,
+      "kept": 26,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "908dbd587a.jpg",
+      "consensus_avg_sim": 0.6172804832458496,
+      "skipped": false,
+      "removed_files": [
+        "9517119750.jpg",
+        "38a662ab09.jpg",
+        "2b59db82bf.jpg"
+      ]
+    },
+    {
+      "actor": "kartik_aaryan",
+      "total": 30,
+      "kept": 27,
+      "removed": 3,
+      "no_face": 1,
+      "wrong_person": 2,
+      "consensus_img": "aaa4f1a869.jpg",
+      "consensus_avg_sim": 0.6335691809654236,
+      "skipped": false,
+      "removed_files": [
+        "fddedee708.jpg",
+        "51b6304be7.jpg",
+        "53981d8887.jpg"
+      ]
+    },
+    {
+      "actor": "katrina_kaif",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 2,
+      "wrong_person": 4,
+      "consensus_img": "3ad9a8dc9f.jpg",
+      "consensus_avg_sim": 0.5143495798110962,
+      "skipped": false,
+      "removed_files": [
+        "5ee0f70f7b.jpg",
+        "8fb3c18904.jpg",
+        "32fb593aad.jpg",
+        "50aaa4ba57.jpg",
+        "737f769a83.jpg",
+        "9124b0b348.jpg"
+      ]
+    },
+    {
+      "actor": "kiara_advani",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 3,
+      "wrong_person": 6,
+      "consensus_img": "fb51664e51.jpg",
+      "consensus_avg_sim": 0.5588330626487732,
+      "skipped": false,
+      "removed_files": [
+        "0d75100c9e.jpg",
+        "ee7beb863f.jpg",
+        "dad57c4136.jpg",
+        "26b400c88e.jpg",
+        "0a7e1ccfe3.jpg",
+        "2634a0a38a.jpg",
+        "50b80d305a.jpg",
+        "592933e9b7.jpg",
+        "645b5e4e48.jpg"
+      ]
+    },
+    {
+      "actor": "kriti_sanon",
+      "total": 30,
+      "kept": 28,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "488fcb6f20.jpg",
+      "consensus_avg_sim": 0.64079749584198,
+      "skipped": false,
+      "removed_files": [
+        "7b9cc87182.jpg",
+        "9fbfff514a.jpg"
+      ]
+    },
+    {
+      "actor": "madhuri_dixit",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 3,
+      "wrong_person": 4,
+      "consensus_img": "b67b838b57.jpg",
+      "consensus_avg_sim": 0.5216708779335022,
+      "skipped": false,
+      "removed_files": [
+        "7e0c0a1f5e.jpg",
+        "43b06344f1.jpg",
+        "e54b11ae09.jpg",
+        "15471617de.jpg",
+        "239b502a9a.jpg",
+        "7b1fcefe04.jpg",
+        "b1b8a4b289.jpg"
+      ]
+    },
+    {
+      "actor": "mahesh_babu",
+      "total": 30,
+      "kept": 27,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "375c64a8ea.jpg",
+      "consensus_avg_sim": 0.6116329431533813,
+      "skipped": false,
+      "removed_files": [
+        "1a00b45371.jpg",
+        "8072201f6f.jpg",
+        "b62e272fe2.jpg"
+      ]
+    },
+    {
+      "actor": "mammootty",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "3fc5b83d7c.jpg",
+      "consensus_avg_sim": 0.47864067554473877,
+      "skipped": false,
+      "removed_files": [
+        "d85368af20.jpg",
+        "382eac322a.jpg",
+        "9163cc83fd.jpg",
+        "0393291763.jpg",
+        "1df87b7f37.jpg",
+        "0c0d8ba44b.jpg"
+      ]
+    },
+    {
+      "actor": "manju_warrier",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 0,
+      "wrong_person": 7,
+      "consensus_img": "62837e7a1d.jpg",
+      "consensus_avg_sim": 0.5041059851646423,
+      "skipped": false,
+      "removed_files": [
+        "f64db3042d.jpg",
+        "36dcd2934b.jpg",
+        "b9788c8824.jpg",
+        "09613f30b6.jpg",
+        "6d59958cf6.jpg",
+        "1550931f92.jpg",
+        "014088038a.jpg"
+      ]
+    },
+    {
+      "actor": "manoj_bajpayee",
+      "total": 32,
+      "kept": 29,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "88ba09a7ea.jpg",
+      "consensus_avg_sim": 0.6079991459846497,
+      "skipped": false,
+      "removed_files": [
+        "48e5a8585e.jpg",
+        "f5eb873742.jpg",
+        "7db8194e02.jpg"
+      ]
+    },
+    {
+      "actor": "mohanlal",
+      "total": 30,
+      "kept": 14,
+      "removed": 16,
+      "no_face": 6,
+      "wrong_person": 10,
+      "consensus_img": "361a7a6dca.jpg",
+      "consensus_avg_sim": 0.41701188683509827,
+      "skipped": false,
+      "removed_files": [
+        "b2ccff071a.jpg",
+        "6912041d00.jpg",
+        "4934a94a84.jpg",
+        "a9bb488140.jpg",
+        "60ed66e52a.jpg",
+        "253d585343.jpg",
+        "5fbf740cc6.jpg",
+        "028fba47fa.jpg",
+        "20d19d21d7.jpg",
+        "c263194718.jpg",
+        "1433bdbca2.jpg",
+        "1a44fa183f.jpg",
+        "2610d28a72.jpg",
+        "2a7e7a2a95.jpg",
+        "5b10703050.jpg",
+        "905cf984ca.jpg"
+      ]
+    },
+    {
+      "actor": "nagarjuna",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "fb2a109189.jpg",
+      "consensus_avg_sim": 0.5407006740570068,
+      "skipped": false,
+      "removed_files": [
+        "de824b54a4.jpg",
+        "b7482971a2.jpg",
+        "a084be4336.jpg",
+        "ec9ce04bb4.jpg",
+        "7017a0aadc.jpg",
+        "3cbb45f098.jpg"
+      ]
+    },
+    {
+      "actor": "namitha",
+      "total": 30,
+      "kept": 30,
+      "removed": 0,
+      "no_face": 0,
+      "wrong_person": 0,
+      "consensus_img": "d71e0f5e01.jpg",
+      "consensus_avg_sim": 0.6239719390869141,
+      "skipped": false,
+      "removed_files": []
+    },
+    {
+      "actor": "nani",
+      "total": 23,
+      "kept": 17,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "c1b897a97c.jpg",
+      "consensus_avg_sim": 0.5276002287864685,
+      "skipped": false,
+      "removed_files": [
+        "7a9624e171.jpg",
+        "e53026637c.jpg",
+        "5953109d6d.jpg",
+        "44d0862fca.jpg",
+        "42f369a0df.jpg",
+        "5c41e01370.jpg"
+      ]
+    },
+    {
+      "actor": "naseeruddin_shah",
+      "total": 25,
+      "kept": 23,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "fa30cdf7c7.jpg",
+      "consensus_avg_sim": 0.5983431339263916,
+      "skipped": false,
+      "removed_files": [
+        "0554723763.jpg",
+        "69db8dca0f.jpg"
+      ]
+    },
+    {
+      "actor": "nawazuddin_siddiqui",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 0,
+      "wrong_person": 6,
+      "consensus_img": "6daeec69c7.jpg",
+      "consensus_avg_sim": 0.5756347179412842,
+      "skipped": false,
+      "removed_files": [
+        "e56ca44362.jpg",
+        "34f694775e.jpg",
+        "89ece7036a.jpg",
+        "2be9eef4a5.jpg",
+        "8e8ebdfd68.jpg",
+        "57be790944.jpg"
+      ]
+    },
+    {
+      "actor": "nayanthara",
+      "total": 27,
+      "kept": 22,
+      "removed": 5,
+      "no_face": 2,
+      "wrong_person": 3,
+      "consensus_img": "97c7b2960a.jpg",
+      "consensus_avg_sim": 0.5183849930763245,
+      "skipped": false,
+      "removed_files": [
+        "d9877ea557.jpg",
+        "f431e3745f.jpg",
+        "a8062ca246.jpg",
+        "a59fa28663.jpg",
+        "f8b89b1e7c.jpg"
+      ]
+    },
+    {
+      "actor": "ntr_jr",
+      "total": 30,
+      "kept": 25,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "6790bd84ad.jpg",
+      "consensus_avg_sim": 0.577959418296814,
+      "skipped": false,
+      "removed_files": [
+        "55ef274676.jpg",
+        "1d01a09060.jpg",
+        "14acd2d669.jpg",
+        "17d083c2d1.jpg",
+        "c1a09356f0.jpg"
+      ]
+    },
+    {
+      "actor": "om_puri",
+      "total": 30,
+      "kept": 29,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "f79ec32e04.jpg",
+      "consensus_avg_sim": 0.7268021702766418,
+      "skipped": false,
+      "removed_files": [
+        "91673b8618.jpg"
+      ]
+    },
+    {
+      "actor": "pankaj_tripathi",
+      "total": 29,
+      "kept": 23,
+      "removed": 6,
+      "no_face": 2,
+      "wrong_person": 4,
+      "consensus_img": "89c63b18ac.jpg",
+      "consensus_avg_sim": 0.6031805872917175,
+      "skipped": false,
+      "removed_files": [
+        "0a53e2d55c.jpg",
+        "76879c9eec.jpg",
+        "0dbcd725a4.jpg",
+        "9dd280c9ec.jpg",
+        "4d5d4eee71.jpg",
+        "bbc697a8b6.jpg"
+      ]
+    },
+    {
+      "actor": "paresh_rawal",
+      "total": 28,
+      "kept": 23,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "1a70df7e88.jpg",
+      "consensus_avg_sim": 0.6379478573799133,
+      "skipped": false,
+      "removed_files": [
+        "832182a948.jpg",
+        "58bf0f6aa0.jpg",
+        "295adb7eee.jpg",
+        "50d430e977.jpg",
+        "70d7add810.jpg"
+      ]
+    },
+    {
+      "actor": "parineeti_chopra",
+      "total": 28,
+      "kept": 24,
+      "removed": 4,
+      "no_face": 1,
+      "wrong_person": 3,
+      "consensus_img": "a0cb1e7afa.jpg",
+      "consensus_avg_sim": 0.5664803385734558,
+      "skipped": false,
+      "removed_files": [
+        "54001abdd8.jpg",
+        "a6e454a3e3.jpg",
+        "8d78d5068e.jpg",
+        "58f63c8c44.jpg"
+      ]
+    },
+    {
+      "actor": "pooja_hegde",
+      "total": 30,
+      "kept": 27,
+      "removed": 3,
+      "no_face": 2,
+      "wrong_person": 1,
+      "consensus_img": "cc61c5f2a1.jpg",
+      "consensus_avg_sim": 0.6236230731010437,
+      "skipped": false,
+      "removed_files": [
+        "35ccff8b41.jpg",
+        "d9c50db96c.jpg",
+        "f08acf6a24.jpg"
+      ]
+    },
+    {
+      "actor": "prabhas",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 3,
+      "wrong_person": 3,
+      "consensus_img": "b67c5dcdb8.jpg",
+      "consensus_avg_sim": 0.5922715067863464,
+      "skipped": false,
+      "removed_files": [
+        "31a816cb88.jpg",
+        "c7ff6704a0.jpg",
+        "00920bc45f.jpg",
+        "4f116b0e7d.jpg",
+        "772c91bd82.jpg",
+        "e964a1a004.jpg"
+      ]
+    },
+    {
+      "actor": "prakash_raj",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 1,
+      "wrong_person": 3,
+      "consensus_img": "69f8c79637.jpg",
+      "consensus_avg_sim": 0.6537430882453918,
+      "skipped": false,
+      "removed_files": [
+        "3fb5bd3c58.jpg",
+        "99b56463f6.jpg",
+        "5186438ea4.jpg",
+        "a9b2a18788.jpg"
+      ]
+    },
+    {
+      "actor": "preity_zinta",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 4,
+      "wrong_person": 4,
+      "consensus_img": "4f6b6dd86e.jpg",
+      "consensus_avg_sim": 0.5667516589164734,
+      "skipped": false,
+      "removed_files": [
+        "f7a65decbb.jpg",
+        "add5529484.jpg",
+        "89490c2f29.jpg",
+        "885c6c9446.jpg",
+        "1ff9368b39.jpg",
+        "3a547b2236.jpg",
+        "57373ce938.jpg",
+        "747781fc90.jpg"
+      ]
+    },
+    {
+      "actor": "prithviraj_sukumaran",
+      "total": 30,
+      "kept": 28,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "057e0bbfa5.jpg",
+      "consensus_avg_sim": 0.6085675954818726,
+      "skipped": false,
+      "removed_files": [
+        "1d01a09060.jpg",
+        "f09fff5e06.jpg"
+      ]
+    },
+    {
+      "actor": "priyanka_chopra",
+      "total": 50,
+      "kept": 49,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "20.jpg",
+      "consensus_avg_sim": 0.6996471285820007,
+      "skipped": false,
+      "removed_files": [
+        "50.jpg"
+      ]
+    },
+    {
+      "actor": "puneeth_rajkumar",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 1,
+      "wrong_person": 5,
+      "consensus_img": "a1120a120f.jpg",
+      "consensus_avg_sim": 0.6035027503967285,
+      "skipped": false,
+      "removed_files": [
+        "9844917ba0.jpg",
+        "caeac6690f.jpg",
+        "56f49e0667.jpg",
+        "479d0dca9b.jpg",
+        "7125ce0642.jpg",
+        "91a0e25c74.jpg"
+      ]
+    },
+    {
+      "actor": "rajinikanth",
+      "total": 64,
+      "kept": 59,
+      "removed": 5,
+      "no_face": 0,
+      "wrong_person": 5,
+      "consensus_img": "4a1dbcaa4c.jpg",
+      "consensus_avg_sim": 0.5871162414550781,
+      "skipped": false,
+      "removed_files": [
+        "851b53a776.jpg",
+        "1415c2b66e.jpg",
+        "1ab122dbca.jpg",
+        "5721ae3272.jpg",
+        "af424f5ccd.jpg"
+      ]
+    },
+    {
+      "actor": "rajkummar_rao",
+      "total": 30,
+      "kept": 29,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "d4170e0ae8.jpg",
+      "consensus_avg_sim": 0.7055715322494507,
+      "skipped": false,
+      "removed_files": [
+        "fa59a9d882.jpg"
+      ]
+    },
+    {
+      "actor": "rajpal_yadav",
+      "total": 30,
+      "kept": 25,
+      "removed": 5,
+      "no_face": 3,
+      "wrong_person": 2,
+      "consensus_img": "935d965702.jpg",
+      "consensus_avg_sim": 0.5945761203765869,
+      "skipped": false,
+      "removed_files": [
+        "ea2692ddd9.jpg",
+        "1455a7029e.jpg",
+        "114202ab5a.jpg",
+        "383f560679.jpg",
+        "cae0dfed37.jpg"
+      ]
+    },
+    {
+      "actor": "ram_charan",
+      "total": 28,
+      "kept": 25,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "9ad6a5d109.jpg",
+      "consensus_avg_sim": 0.6295432448387146,
+      "skipped": false,
+      "removed_files": [
+        "e509bc09af.jpg",
+        "3117518c71.jpg",
+        "de3b4d0f16.jpg"
+      ]
+    },
+    {
+      "actor": "ramya_krishnan",
+      "total": 50,
+      "kept": 50,
+      "removed": 0,
+      "no_face": 0,
+      "wrong_person": 0,
+      "consensus_img": "3f440fca5d.jpg",
+      "consensus_avg_sim": 0.6709293127059937,
+      "skipped": false,
+      "removed_files": []
+    },
+    {
+      "actor": "ranbir_kapoor",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 2,
+      "wrong_person": 2,
+      "consensus_img": "f0835bffa7.jpg",
+      "consensus_avg_sim": 0.629520058631897,
+      "skipped": false,
+      "removed_files": [
+        "71374d3e48.jpg",
+        "5cf359079f.jpg",
+        "0a05feef2a.jpg",
+        "f7b6c7264e.jpg"
+      ]
+    },
+    {
+      "actor": "rani_mukerji",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 2,
+      "wrong_person": 2,
+      "consensus_img": "5db8ce113a.jpg",
+      "consensus_avg_sim": 0.6050397157669067,
+      "skipped": false,
+      "removed_files": [
+        "a9fe31c0de.jpg",
+        "d8f6b1d1bb.jpg",
+        "907171c650.jpg",
+        "928abb56b1.jpg"
+      ]
+    },
+    {
+      "actor": "ranveer_singh",
+      "total": 50,
+      "kept": 48,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "a5ea093dad.jpg",
+      "consensus_avg_sim": 0.6351969838142395,
+      "skipped": false,
+      "removed_files": [
+        "070e3813ac.jpg",
+        "17a7e60924.jpg"
+      ]
+    },
+    {
+      "actor": "rashmika_mandanna",
+      "total": 30,
+      "kept": 20,
+      "removed": 10,
+      "no_face": 2,
+      "wrong_person": 8,
+      "consensus_img": "40d82157be.jpg",
+      "consensus_avg_sim": 0.5128434300422668,
+      "skipped": false,
+      "removed_files": [
+        "3e1e43f751.jpg",
+        "29e82a9f82.jpg",
+        "5ec08a727b.jpg",
+        "5d1ef00f06.jpg",
+        "96f5396e13.jpg",
+        "25ad7fb6ef.jpg",
+        "829763bcb3.jpg",
+        "ddf96fd15c.jpg",
+        "ae5bdba53d.jpg",
+        "f7b033d427.jpg"
+      ]
+    },
+    {
+      "actor": "ravi_teja",
+      "total": 29,
+      "kept": 25,
+      "removed": 4,
+      "no_face": 2,
+      "wrong_person": 2,
+      "consensus_img": "6072215041.jpg",
+      "consensus_avg_sim": 0.572853147983551,
+      "skipped": false,
+      "removed_files": [
+        "8b836b9cd3.jpg",
+        "da3885b7e9.jpg",
+        "3e1c3d569f.jpg",
+        "71cf69f06e.jpg"
+      ]
+    },
+    {
+      "actor": "rekha",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 2,
+      "wrong_person": 6,
+      "consensus_img": "b80fac187e.jpg",
+      "consensus_avg_sim": 0.4689382016658783,
+      "skipped": false,
+      "removed_files": [
+        "ecc1860b2a.jpg",
+        "d61cedfee2.jpg",
+        "443ce98a65.jpg",
+        "e9fc24b2ed.jpg",
+        "36fa58e8f2.jpg",
+        "3740a211a1.jpg",
+        "c173c127c2.jpg",
+        "d765212f89.jpg"
+      ]
+    },
+    {
+      "actor": "salman_khan",
+      "total": 29,
+      "kept": 24,
+      "removed": 5,
+      "no_face": 1,
+      "wrong_person": 4,
+      "consensus_img": "a64271a743.jpg",
+      "consensus_avg_sim": 0.5517712831497192,
+      "skipped": false,
+      "removed_files": [
+        "0b56f1c704.jpg",
+        "22141ce744.jpg",
+        "08f3ff505e.jpg",
+        "ed257c1898.jpg",
+        "0750cf9bc7.jpg"
+      ]
+    },
+    {
+      "actor": "samantha_ruth_prabhu",
+      "total": 30,
+      "kept": 25,
+      "removed": 5,
+      "no_face": 0,
+      "wrong_person": 5,
+      "consensus_img": "c1e51304c0.jpg",
+      "consensus_avg_sim": 0.47343313694000244,
+      "skipped": false,
+      "removed_files": [
+        "6e96cee538.jpg",
+        "db5a8931f4.jpg",
+        "57d16bd043.jpg",
+        "e1e455ca02.jpg",
+        "e7b8d299c7.jpg"
+      ]
+    },
+    {
+      "actor": "sanjay_dutt",
+      "total": 30,
+      "kept": 25,
+      "removed": 5,
+      "no_face": 3,
+      "wrong_person": 2,
+      "consensus_img": "0dcb579e76.jpg",
+      "consensus_avg_sim": 0.5856414437294006,
+      "skipped": false,
+      "removed_files": [
+        "c13c9cc83f.jpg",
+        "d2dd9e0d2a.jpg",
+        "3e55ef8b5e.jpg",
+        "60f39afe7c.jpg",
+        "fd0bd59daf.jpg"
+      ]
+    },
+    {
+      "actor": "sara_ali_khan",
+      "total": 27,
+      "kept": 24,
+      "removed": 3,
+      "no_face": 1,
+      "wrong_person": 2,
+      "consensus_img": "07ab304f3c.jpg",
+      "consensus_avg_sim": 0.5963867902755737,
+      "skipped": false,
+      "removed_files": [
+        "86d4592be5.jpg",
+        "d53b196cb3.jpg",
+        "181db2e7f8.jpg"
+      ]
+    },
+    {
+      "actor": "sayaji_shinde",
+      "total": 30,
+      "kept": 21,
+      "removed": 9,
+      "no_face": 0,
+      "wrong_person": 9,
+      "consensus_img": "1599c5dc6f.jpg",
+      "consensus_avg_sim": 0.5496109127998352,
+      "skipped": false,
+      "removed_files": [
+        "7f9404656c.jpg",
+        "7158d2f080.jpg",
+        "44a59f7f8a.jpg",
+        "95ac6a0aa7.jpg",
+        "a9df151363.jpg",
+        "a0a85a88d4.jpg",
+        "8afdbc8fb4.jpg",
+        "6ae67e1652.jpg",
+        "7236598841.jpg"
+      ]
+    },
+    {
+      "actor": "shah_rukh_khan",
+      "total": 50,
+      "kept": 50,
+      "removed": 0,
+      "no_face": 0,
+      "wrong_person": 0,
+      "consensus_img": "34bef8d66a.jpg",
+      "consensus_avg_sim": 0.6681703329086304,
+      "skipped": false,
+      "removed_files": []
+    },
+    {
+      "actor": "shahid_kapoor",
+      "total": 27,
+      "kept": 24,
+      "removed": 3,
+      "no_face": 1,
+      "wrong_person": 2,
+      "consensus_img": "9bf00403e1.jpg",
+      "consensus_avg_sim": 0.6002074480056763,
+      "skipped": false,
+      "removed_files": [
+        "0a6cc51f7a.jpg",
+        "57ee1fdf7d.jpg",
+        "061a3887c5.jpg"
+      ]
+    },
+    {
+      "actor": "shraddha_kapoor",
+      "total": 30,
+      "kept": 24,
+      "removed": 6,
+      "no_face": 2,
+      "wrong_person": 4,
+      "consensus_img": "65f804c9fb.jpg",
+      "consensus_avg_sim": 0.6257924437522888,
+      "skipped": false,
+      "removed_files": [
+        "d2a2884cc5.jpg",
+        "1c2f4b5a71.jpg",
+        "7bc5f9df22.jpg",
+        "ed81f97bb4.jpg",
+        "a0945b80b3.jpg",
+        "a8f51b734e.jpg"
+      ]
+    },
+    {
+      "actor": "shriya_saran",
+      "total": 30,
+      "kept": 28,
+      "removed": 2,
+      "no_face": 2,
+      "wrong_person": 0,
+      "consensus_img": "b587727de6.jpg",
+      "consensus_avg_sim": 0.6525372862815857,
+      "skipped": false,
+      "removed_files": [
+        "c83d1e588c.jpg",
+        "f4eb00ae79.jpg"
+      ]
+    },
+    {
+      "actor": "sidharth_malhotra",
+      "total": 29,
+      "kept": 26,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "c3747fcbf2.jpg",
+      "consensus_avg_sim": 0.6046594977378845,
+      "skipped": false,
+      "removed_files": [
+        "2e1edee28b.jpg",
+        "7ba9542149.jpg",
+        "409aeeec56.jpg"
+      ]
+    },
+    {
+      "actor": "sivakarthikeyan",
+      "total": 25,
+      "kept": 23,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "f598ed2744.jpg",
+      "consensus_avg_sim": 0.6294398903846741,
+      "skipped": false,
+      "removed_files": [
+        "059884350f.jpg",
+        "c062c6608e.jpg"
+      ]
+    },
+    {
+      "actor": "sonakshi_sinha",
+      "total": 28,
+      "kept": 27,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "69a870fcad.jpg",
+      "consensus_avg_sim": 0.6178478598594666,
+      "skipped": false,
+      "removed_files": [
+        "2433cc82d1.jpg"
+      ]
+    },
+    {
+      "actor": "sridevi",
+      "total": 50,
+      "kept": 49,
+      "removed": 1,
+      "no_face": 0,
+      "wrong_person": 1,
+      "consensus_img": "1d4586bff9.jpg",
+      "consensus_avg_sim": 0.628757655620575,
+      "skipped": false,
+      "removed_files": [
+        "2f3bec6ce6.jpg"
+      ]
+    },
+    {
+      "actor": "sudeep",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 0,
+      "wrong_person": 4,
+      "consensus_img": "03920133a9.jpg",
+      "consensus_avg_sim": 0.5848154425621033,
+      "skipped": false,
+      "removed_files": [
+        "f2c04f7b8a.jpg",
+        "420cc85caa.jpg",
+        "bc6c78d9b3.jpg",
+        "8e577ee108.jpg"
+      ]
+    },
+    {
+      "actor": "sunny_deol",
+      "total": 29,
+      "kept": 18,
+      "removed": 11,
+      "no_face": 2,
+      "wrong_person": 9,
+      "consensus_img": "614e5fa34c.jpg",
+      "consensus_avg_sim": 0.4516626298427582,
+      "skipped": false,
+      "removed_files": [
+        "aa7fa64c85.jpg",
+        "77cd6b1f9a.jpg",
+        "44b5700094.jpg",
+        "66360b254b.jpg",
+        "fba7eb8bfb.jpg",
+        "9341384ff7.jpg",
+        "400afc2f08.jpg",
+        "d52e8841ab.jpg",
+        "948358d2b9.jpg",
+        "344c8ae666.jpg",
+        "ccd10d8498.jpg"
+      ]
+    },
+    {
+      "actor": "suriya",
+      "total": 29,
+      "kept": 27,
+      "removed": 2,
+      "no_face": 1,
+      "wrong_person": 1,
+      "consensus_img": "55b8e053d1.jpg",
+      "consensus_avg_sim": 0.6688042879104614,
+      "skipped": false,
+      "removed_files": [
+        "1c62f601c8.jpg",
+        "fbe2857def.jpg"
+      ]
+    },
+    {
+      "actor": "taapsee_pannu",
+      "total": 28,
+      "kept": 26,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "2aa1efb59f.jpg",
+      "consensus_avg_sim": 0.5881620645523071,
+      "skipped": false,
+      "removed_files": [
+        "6f6bc2ee0d.jpg",
+        "0f734e7ed0.jpg"
+      ]
+    },
+    {
+      "actor": "tiger_shroff",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 3,
+      "wrong_person": 4,
+      "consensus_img": "6893dc49d0.jpg",
+      "consensus_avg_sim": 0.5599375367164612,
+      "skipped": false,
+      "removed_files": [
+        "e3c30352d1.jpg",
+        "155a73c854.jpg",
+        "aba1f3891f.jpg",
+        "cf5592c8e7.jpg",
+        "6c11da50a5.jpg",
+        "b22a1ff873.jpg",
+        "d30cbd69cd.jpg"
+      ]
+    },
+    {
+      "actor": "tovino_thomas",
+      "total": 29,
+      "kept": 23,
+      "removed": 6,
+      "no_face": 1,
+      "wrong_person": 5,
+      "consensus_img": "d3f234d8f2.jpg",
+      "consensus_avg_sim": 0.565893292427063,
+      "skipped": false,
+      "removed_files": [
+        "a62a534cfc.jpg",
+        "32e4bb7e0c.jpg",
+        "f2bed065a1.jpg",
+        "763885c901.jpg",
+        "094b55f206.jpg",
+        "834a389763.jpg"
+      ]
+    },
+    {
+      "actor": "trisha_krishnan",
+      "total": 30,
+      "kept": 27,
+      "removed": 3,
+      "no_face": 0,
+      "wrong_person": 3,
+      "consensus_img": "d97f5046e7.jpg",
+      "consensus_avg_sim": 0.5907299518585205,
+      "skipped": false,
+      "removed_files": [
+        "ba2e0e5484.jpg",
+        "19ac313658.jpg",
+        "e9231f0fdd.jpg"
+      ]
+    },
+    {
+      "actor": "upendra",
+      "total": 30,
+      "kept": 22,
+      "removed": 8,
+      "no_face": 0,
+      "wrong_person": 8,
+      "consensus_img": "851e8688ab.jpg",
+      "consensus_avg_sim": 0.5135517716407776,
+      "skipped": false,
+      "removed_files": [
+        "2b7415e144.jpg",
+        "c4718a40ef.jpg",
+        "b08d976816.jpg",
+        "690b6c8aa1.jpg",
+        "e09949a4ef.jpg",
+        "9f513274e3.jpg",
+        "ed4f2cbcd2.jpg",
+        "42d001ebfd.jpg"
+      ]
+    },
+    {
+      "actor": "varun_dhawan",
+      "total": 50,
+      "kept": 48,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "94c712942b.jpg",
+      "consensus_avg_sim": 0.6492556929588318,
+      "skipped": false,
+      "removed_files": [
+        "37fe6089c9.jpg",
+        "7a8484dbfe.jpg"
+      ]
+    },
+    {
+      "actor": "venkatesh",
+      "total": 30,
+      "kept": 17,
+      "removed": 13,
+      "no_face": 0,
+      "wrong_person": 13,
+      "consensus_img": "611404e212.jpg",
+      "consensus_avg_sim": 0.4013284146785736,
+      "skipped": false,
+      "removed_files": [
+        "c4e3c16807.jpg",
+        "c3ecbc8630.jpg",
+        "a85c697f6e.jpg",
+        "f7d1f0c5c0.jpg",
+        "3fc63f51e5.jpg",
+        "c857cc2923.jpg",
+        "5c715c8204.jpg",
+        "a7230acc1d.jpg",
+        "4132a9dce4.jpg",
+        "77a4acb3af.jpg",
+        "29eefe38e8.jpg",
+        "8f98acb441.jpg",
+        "f5d27f0591.jpg"
+      ]
+    },
+    {
+      "actor": "vicky_kaushal",
+      "total": 26,
+      "kept": 24,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "9dbd02b779.jpg",
+      "consensus_avg_sim": 0.6543160080909729,
+      "skipped": false,
+      "removed_files": [
+        "2dd697c4f5.jpg",
+        "5d00f3d715.jpg"
+      ]
+    },
+    {
+      "actor": "vidya_balan",
+      "total": 30,
+      "kept": 28,
+      "removed": 2,
+      "no_face": 0,
+      "wrong_person": 2,
+      "consensus_img": "7bb992b5e4.jpg",
+      "consensus_avg_sim": 0.6408668756484985,
+      "skipped": false,
+      "removed_files": [
+        "6ede207210.jpg",
+        "05052a4c6b.jpg"
+      ]
+    },
+    {
+      "actor": "vijay",
+      "total": 30,
+      "kept": 26,
+      "removed": 4,
+      "no_face": 1,
+      "wrong_person": 3,
+      "consensus_img": "1afdc5fa90.jpg",
+      "consensus_avg_sim": 0.5856197476387024,
+      "skipped": false,
+      "removed_files": [
+        "41330f312d.jpg",
+        "ccbf96f4ba.jpg",
+        "bbc9d7c798.jpg",
+        "bcf68e5f2c.jpg"
+      ]
+    },
+    {
+      "actor": "vijay_sethupathi",
+      "total": 29,
+      "kept": 23,
+      "removed": 6,
+      "no_face": 3,
+      "wrong_person": 3,
+      "consensus_img": "077abc2c24.jpg",
+      "consensus_avg_sim": 0.5676011443138123,
+      "skipped": false,
+      "removed_files": [
+        "57056d7c1c.jpg",
+        "e5a3213a14.jpg",
+        "9a8258801f.jpg",
+        "746d68cb23.jpg",
+        "7d579168b0.jpg",
+        "c9cbc57f4d.jpg"
+      ]
+    },
+    {
+      "actor": "vikram",
+      "total": 29,
+      "kept": 18,
+      "removed": 11,
+      "no_face": 1,
+      "wrong_person": 10,
+      "consensus_img": "4e381b23e9.jpg",
+      "consensus_avg_sim": 0.38026759028434753,
+      "skipped": false,
+      "removed_files": [
+        "9da9884f76.jpg",
+        "18005fa3a0.jpg",
+        "4325d9dcb8.jpg",
+        "5f0e689961.jpg",
+        "e33fb47947.jpg",
+        "1612c9e541.jpg",
+        "732be8ca9f.jpg",
+        "f7f177a7ff.jpg",
+        "a9f217146e.jpg",
+        "4d766dd556.jpg",
+        "16d7ea047d.jpg"
+      ]
+    },
+    {
+      "actor": "yash",
+      "total": 30,
+      "kept": 23,
+      "removed": 7,
+      "no_face": 1,
+      "wrong_person": 6,
+      "consensus_img": "5a4e7d5307.jpg",
+      "consensus_avg_sim": 0.583092212677002,
+      "skipped": false,
+      "removed_files": [
+        "9a287c4125.jpg",
+        "087ff309c0.jpg",
+        "0287da78c8.jpg",
+        "5390078c9a.jpg",
+        "54aa859129.jpg",
+        "ca57892f7d.jpg",
+        "f28ca221bb.jpg"
+      ]
+    }
+  ]
+}

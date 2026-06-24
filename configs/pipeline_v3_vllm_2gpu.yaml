@@ -1,4 +1,6 @@
 # v3 two-GPU + vLLM — data-parallel (TP=1 per GPU, no NCCL).
+# s8 caption: gemma4 + vLLM (3 frames) — already data-parallel via gpu_ids [0,1].
+#   parallel_gpu_caption is for HF video backend only (see pipeline_v3_dense_video_2gpu.yaml).
 # Use with CUDA_VISIBLE_DEVICES=2,3 (logical cuda:0, cuda:1).
 #
 # Install once:
@@ -6,10 +8,12 @@
 #   bash scripts/install_vllm_gemma4.sh   # gemma4 caption (vLLM 0.19+)
 #
 # Run:
-#   CUDA_VISIBLE_DEVICES=4,5 bash scripts/run_v3_vllm_2gpu.sh /path/to/movie.mp4 VIDEO_ID
+#   CUDA_VISIBLE_DEVICES=2,3 bash scripts/run_v3_vllm_2gpu.sh /path/to/movie.mp4 [VIDEO_ID]
+#   CUDA_VISIBLE_DEVICES=2,3 bash scripts/run_v3_vllm_2gpu.sh /path/to/movies_folder/
 #
 # Full movie (two phases — s6/s7 Ray must not share process with second vLLM load):
 #   bash scripts/run_v3_vllm_2gpu.sh /path/to/movie.mp4 VIDEO_ID
+#   bash scripts/run_v3_vllm_2gpu.sh /mnt/data0/harsha/Movies/feb_11/
 #
 # Re-caption only:
 #   CUDA_VISIBLE_DEVICES=4,5 python run_pipeline.py --config pipeline_v3_vllm_2gpu.yaml \
@@ -38,6 +42,10 @@ export:
 
 s2:
   mode: score_only
+
+s1:
+  parallel_scene_chunks: 4
+  scene_chunk_overlap_sec: 15
 
 s4:
   backend: vllm
@@ -104,10 +112,15 @@ models_overrides:
     model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
     gpu_ids: [0, 1]
     max_new_tokens: 128
+  vcinspector:
+    model_path: /mnt/data0/harsha/new_dataset_pipeline/models/VCInspector-7B
 
 captioner:
-  caption_model: gemma4   # qwen2.5 | qwen3 | gemma3 | gemma4
-  backend: vllm            # gemma4 via vLLM needs: bash scripts/install_vllm_gemma4.sh
+  caption_model: gemma4
+  backend: vllm
+  # Native MP4 (slow, HF not vLLM):
+  #   caption_model: gemma4_dense
+  #   backend: video
   tensor_parallel_size: 1
   gpu_ids: [0, 1]
   batch_size: 6
@@ -116,6 +129,22 @@ captioner:
   caption_all_clips: true
   caption_format: prose   # json | prose
   prompt_version: qwen_vllm_eros_v1
+
+s13:
+  enabled: true
+  conda_env: vcinspector
+  worker: scripts/vcinspector_worker.py
+  model_id: dipta007/VCInspector-7B
+  gpu_ids: [0]
+  batch_size: 1
+  video_max_pixels: 151200   # 360*420 per VCInspector README (native MP4)
+  fps: 1.0
+  fps_max_frames: 12
+  max_tokens: 256
+  include_verdicts:
+    - FINAL
+    - REVIEW
+  # max_clips: 2   # uncomment for smoke test
 
 services_order:
   - s1
@@ -128,30 +157,24 @@ services_order:
   - s8
   - s9
   - s10
+  - s13
   - s11
   - s12
 
 movie_registry: data/movie_registry.csv
 
 master_pipeline:
-  root: /mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset
+  root: master
   classify_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   model_path: /mnt/data0/harsha/new_dataset_pipeline/models/Qwen2.5-VL-7B-Instruct
   gemma_model_path: /mnt/data0/harsha/new_dataset_pipeline/models/gemma-3-4b-it
   actor_embeddings_dir: actors/actor_embeddings
   yolo_face_model: yolov12n-face.pt
-  actor_similarity_threshold: 0.50
+  actor_similarity_threshold: 0.35
   actor_similarity_margin: 0.10
-  actor_caption_min_similarity: 0.50
+  actor_caption_min_similarity: 0.35
   actor_caption_min_margin: 0.10
-  actor_cast_filter:
-    - shah_rukh_khan
-    - aishwarya_rai
-    - madhuri_dixit
-  actor_gender_map:
-    shah_rukh_khan: male
-    aishwarya_rai: female
-    madhuri_dixit: female
+  # actor_cast_filter / actor_gender_map omitted — match all 108 actor embeddings
   classify_gpu_ids: [0, 1]
   verify_gpu_ids: [0, 1]
   actor_tag_gpu_id: 0

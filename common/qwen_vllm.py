@@ -181,6 +181,9 @@ class _VLLMReplica:
         max_tokens: int,
         replica_id: int,
         caption_family: str = "qwen",
+        input_modality: str = "image",
+        num_frames: int = 32,
+        max_videos: int = 1,
     ):
         self.model_path = model_path
         self.gpu_ids = gpu_ids
@@ -189,6 +192,9 @@ class _VLLMReplica:
         self.max_tokens = max_tokens
         self.replica_id = replica_id
         self.caption_family = caption_family
+        self.input_modality = input_modality
+        self.num_frames = num_frames
+        self.max_videos = max_videos
         self._llm = None
         self._processor = None
 
@@ -214,6 +220,10 @@ class _VLLMReplica:
             if tp == 1 and len(self.gpu_ids) == 1
             else nullcontext()
         )
+        if self.input_modality == "video":
+            mm_limit = {"video": self.max_videos}
+        else:
+            mm_limit = {"image": self.max_images}
         with load_ctx:
             self._processor = AutoProcessor.from_pretrained(self.model_path)
             self._llm = LLM(
@@ -222,7 +232,7 @@ class _VLLMReplica:
                 dtype="bfloat16",
                 trust_remote_code=True,
                 max_model_len=self.max_model_len,
-                limit_mm_per_prompt={"image": self.max_images},
+                limit_mm_per_prompt=mm_limit,
                 enforce_eager=True,
                 distributed_executor_backend=executor,
                 gpu_memory_utilization=float(
@@ -266,6 +276,39 @@ class _VLLMReplica:
         mm_data = {"image": img_list[0]} if len(img_list) == 1 else {"image": img_list}
         return {"prompt": prompt_text, "multi_modal_data": mm_data}
 
+    def _build_video_prompt(
+        self,
+        clip_path: str,
+        text: str,
+        *,
+        system_text: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Native-video prompt: feed a clip MP4 as (frames, metadata) to vLLM."""
+        from vllm.multimodal.video import OpenCVVideoBackend
+
+        with open(clip_path, "rb") as fh:
+            frames, metadata = OpenCVVideoBackend.load_bytes(
+                fh.read(), num_frames=self.num_frames
+            )
+        content: List[Dict[str, Any]] = [
+            {"type": "video"},
+            {"type": "text", "text": text},
+        ]
+        if system_text:
+            messages = [
+                {"role": "system", "content": [{"type": "text", "text": system_text}]},
+                {"role": "user", "content": content},
+            ]
+        else:
+            messages = [{"role": "user", "content": content}]
+        prompt_text = self._processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        return {
+            "prompt": prompt_text,
+            "multi_modal_data": {"video": (frames, metadata)},
+        }
+
     def _unpack_item(
         self, item: Union[Tuple[ImageInput, str], Tuple[ImageInput, str, str]]
     ) -> Tuple[ImageInput, str, Optional[str]]:
@@ -291,10 +334,15 @@ class _VLLMReplica:
         )
         prompts = []
         for item in items:
-            images, text, system_text = self._unpack_item(item)
-            prompts.append(
-                self._build_prompt(images, text, system_text=system_text)
-            )
+            media, text, system_text = self._unpack_item(item)
+            if self.input_modality == "video":
+                prompts.append(
+                    self._build_video_prompt(media, text, system_text=system_text)
+                )
+            else:
+                prompts.append(
+                    self._build_prompt(media, text, system_text=system_text)
+                )
         outputs = self._llm.generate(prompts, sampling)
         return [out.outputs[0].text.strip() for out in outputs]
 
@@ -313,6 +361,29 @@ class _VLLMReplica:
         for chunk in progress_batched(items, batch_size, desc=desc):
             results.extend(self.generate_batch(chunk, max_tokens=max_tokens))
         return results
+
+    def generate_video_candidates(
+        self,
+        clip_path: str,
+        text: str,
+        *,
+        n: int,
+        temperature: float,
+        max_tokens: Optional[int] = None,
+    ) -> List[str]:
+        """N sampled caption candidates for one clip (used to re-roll a clip
+        whose first caption over-tagged a second person)."""
+        from vllm import SamplingParams
+
+        self.load()
+        prompt = self._build_video_prompt(clip_path, text)
+        sampling = SamplingParams(
+            n=max(1, n),
+            temperature=max(0.01, temperature),
+            max_tokens=max_tokens or self.max_tokens,
+        )
+        outputs = self._llm.generate([prompt], sampling)
+        return [o.text.strip() for o in outputs[0].outputs]
 
     def cleanup(self) -> None:
         llm = self._llm
@@ -342,6 +413,11 @@ class QwenVLLMEngine:
         s5 = pcfg.get("s5", {})
         cap = pcfg.get("captioner", {})
         mp = pcfg.get("master_pipeline", {})
+
+        # Multimodal input defaults (overridden to video for gemma4_dense vLLM-video).
+        self.input_modality = "image"
+        self.num_frames = int(cap.get("num_frames", vllm_cfg.get("num_frames", 32)))
+        self.max_videos = int(vllm_cfg.get("max_videos_per_prompt", 1))
 
         if stage == "s5":
             self.model_path = str(
@@ -376,6 +452,9 @@ class QwenVLLMEngine:
             resolved = resolve_caption_model(config)
             self.model_path = str(resolved["model_path"])
             self._caption_family = resolved["family"]
+            self.input_modality = (
+                "video" if resolved.get("backend") == "vllm_video" else "image"
+            )
             self.max_tokens = int(
                 vllm_cfg.get("max_tokens", cap.get("max_tokens", 1000))
             )
@@ -458,6 +537,9 @@ class QwenVLLMEngine:
                 max_tokens=self.max_tokens,
                 replica_id=idx,
                 caption_family=getattr(self, "_caption_family", "qwen"),
+                input_modality=self.input_modality,
+                num_frames=self.num_frames,
+                max_videos=self.max_videos,
             )
             replica.load()
             self._replicas.append(replica)
@@ -529,6 +611,23 @@ class QwenVLLMEngine:
                 progress_desc=desc,
             )
         return self._generate_parallel(items, batch_size=bs, max_tokens=max_tokens)
+
+    def recaption_video_candidates(
+        self,
+        clip_path: str,
+        text: str,
+        *,
+        n: int = 4,
+        temperature: float = 0.5,
+        max_tokens: Optional[int] = None,
+    ) -> List[str]:
+        """N sampled caption candidates for one clip (re-roll an over-tagged clip)."""
+        self.load()
+        if not self._replicas:
+            return []
+        return self._replicas[0].generate_video_candidates(
+            clip_path, text, n=n, temperature=temperature, max_tokens=max_tokens
+        )
 
     def cleanup(self) -> None:
         for replica in self._replicas:

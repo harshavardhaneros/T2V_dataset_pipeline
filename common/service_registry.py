@@ -20,6 +20,7 @@ SERVICE_MODULES = {
     "s10": ("services.service_10_gate.service", "GateService"),
     "s11": ("services.service_11_export.service", "ExportService"),
     "s12": ("services.service_12_report.service", "ReportService"),
+    "s13": ("services.service_13_caption_verify.service", "CaptionVerifyService"),
 }
 
 

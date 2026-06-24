@@ -232,6 +232,34 @@ def _clip_duration_sec(rec: Dict[str, Any]) -> float:
     return d if d > 0 else 5.0
 
 
+def _caption_frame_width(rec: Dict[str, Any]) -> int:
+    cb = rec.get("crop_box") or ""
+    try:
+        return int(str(cb).split(":")[0])
+    except (ValueError, IndexError):
+        return 1920
+
+
+def _actor_position_phrase(rec: Dict[str, Any], name: str) -> str:
+    """Coarse left/center/right location of a named actor, from their face bbox.
+    Grounds the name to one person so the model can't apply it to everyone."""
+    bbox = None
+    for a in rec.get("actors") or []:
+        if isinstance(a, dict) and a.get("display_name") == name and a.get("bbox"):
+            bbox = a["bbox"]
+            break
+    if not bbox or len(bbox) < 4:
+        return ""
+    width = max(1, _caption_frame_width(rec))
+    cx = (float(bbox[0]) + float(bbox[2])) / 2.0
+    frac = cx / width
+    if frac < 0.38:
+        return "on the left side of the frame"
+    if frac > 0.62:
+        return "on the right side of the frame"
+    return "in the center of the frame"
+
+
 def build_caption_user_text(
     rec: Dict[str, Any],
     *,
@@ -255,19 +283,29 @@ def build_caption_user_text(
             "Describe the full clip including movement and camera work."
         )
     if len(clip_actors) >= 2:
-        cast = " and ".join(clip_actors)
+        located = []
+        for name in clip_actors:
+            pos = _actor_position_phrase(rec, name)
+            located.append(f"{name} ({pos})" if pos else name)
         lines.append(
-            f"Identified cast in this clip: {cast}. "
-            "You must use each person's full name when describing them. "
-            "Never write 'the man', 'the woman', 'the other person', or 'two individuals'."
+            f"Identified cast in this clip: {', '.join(located)}. "
+            "Use each named person's full name ONLY for the person at their stated "
+            "location. Any other visible people are NOT in this cast — call them "
+            "'another man', 'another woman', or 'another person', and never reuse a "
+            "cast member's name for someone else. Do not write 'the man'/'the woman' "
+            "for a named cast member."
         )
     elif len(clip_actors) == 1:
+        name = clip_actors[0]
+        pos = _actor_position_phrase(rec, name)
+        where = f" {name} is the person {pos}." if pos else ""
         lines.append(
-            f"Identified person: {clip_actors[0]}. "
-            "Use this full name once when describing them. "
-            "If other people are visible, call them 'another woman', 'another man', "
-            f"or 'another person' — never reuse {clip_actors[0]}'s name for anyone else. "
-            "Do not write 'the man', 'the woman', or 'a person' for the identified person."
+            f"Identified person: {name}.{where} "
+            f"ONLY that one person is {name}. "
+            "Any other people visible are different individuals — call them "
+            f"'another man', 'another woman', or 'another person', and NEVER use "
+            f"{name}'s name for anyone else, even if they look similar. "
+            f"Use {name}'s full name for the identified person (not 'the man'/'the woman')."
         )
     else:
         lines.append("Describe the people, setting, and action visible across the frames.")

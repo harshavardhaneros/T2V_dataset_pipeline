@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -10,11 +11,57 @@ import imagehash
 from PIL import Image
 from scenedetect import SceneManager, open_video
 from scenedetect.detectors import ContentDetector
+from scenedetect.frame_timecode import FrameTimecode
 
 from common.base_service import BaseService
 from common.progress import iter_progress
 from common.ffmpeg_utils import detect_crop
 from common.metadata_manager import MetadataManager, new_clip_record
+
+
+def _detect_scenes_in_range(
+    video_path: str,
+    fps: float,
+    start_sec: float,
+    end_sec: float,
+    threshold: float,
+    min_scene_len: int,
+) -> List[Tuple[float, float]]:
+    """Detect scenes within [start_sec, end_sec] (absolute movie time)."""
+    if end_sec <= start_sec:
+        return []
+    start_tc = FrameTimecode(timecode=start_sec, fps=fps)
+    end_tc = FrameTimecode(timecode=end_sec, fps=fps)
+    # scenedetect 0.7 Cv2 backend does not accept start_time/end_time on open_video;
+    # seek + detect_scenes(end_time=...) works and returns absolute timestamps.
+    video = open_video(video_path)
+    video.seek(start_tc)
+    scene_manager = SceneManager()
+    scene_manager.add_detector(
+        ContentDetector(threshold=threshold, min_scene_len=min_scene_len)
+    )
+    scene_manager.detect_scenes(video=video, end_time=end_tc, show_progress=False)
+    scene_list = scene_manager.get_scene_list()
+    return [
+        (scene_start.get_seconds(), scene_end.get_seconds())
+        for scene_start, scene_end in scene_list
+    ]
+
+
+def _merge_scene_ranges(
+    ranges: List[Tuple[float, float]], merge_gap_sec: float = 0.5
+) -> List[Tuple[float, float]]:
+    if not ranges:
+        return []
+    ordered = sorted(ranges, key=lambda r: r[0])
+    merged: List[Tuple[float, float]] = [ordered[0]]
+    for start, end in ordered[1:]:
+        prev_start, prev_end = merged[-1]
+        if start <= prev_end + merge_gap_sec:
+            merged[-1] = (prev_start, max(prev_end, end))
+        else:
+            merged.append((start, end))
+    return merged
 
 
 class ExtractService(BaseService):
@@ -95,6 +142,74 @@ class ExtractService(BaseService):
         cap.release()
         return phashes
 
+    def _video_duration_sec(self, video_path: Path, fps: float) -> float:
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return 0.0
+        frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0
+        cap.release()
+        if frames > 0 and fps > 0:
+            return float(frames) / fps
+        return 0.0
+
+    def _detect_scenes(
+        self,
+        video_path: Path,
+        threshold: float,
+        min_scene_len: int,
+        fps: float,
+    ) -> list:
+        s1_cfg = self.config.get("pipeline", {}).get("s1", {})
+        parallel_chunks = int(s1_cfg.get("parallel_scene_chunks", 0) or 0)
+        overlap_sec = float(s1_cfg.get("scene_chunk_overlap_sec", 15))
+
+        if parallel_chunks <= 1:
+            video = open_video(str(video_path))
+            scene_manager = SceneManager()
+            scene_manager.add_detector(
+                ContentDetector(threshold=threshold, min_scene_len=min_scene_len)
+            )
+            scene_manager.detect_scenes(video=video, show_progress=False)
+            return scene_manager.get_scene_list()
+
+        duration = self._video_duration_sec(video_path, fps)
+        if duration <= 0:
+            parallel_chunks = 1
+        if parallel_chunks <= 1:
+            video = open_video(str(video_path))
+            scene_manager = SceneManager()
+            scene_manager.add_detector(
+                ContentDetector(threshold=threshold, min_scene_len=min_scene_len)
+            )
+            scene_manager.detect_scenes(video=video, show_progress=False)
+            return scene_manager.get_scene_list()
+
+        chunk_len = duration / parallel_chunks
+        tasks: List[Tuple[str, float, float, float, float, int]] = []
+        for i in range(parallel_chunks):
+            start = max(0.0, i * chunk_len - (overlap_sec if i else 0.0))
+            end = min(duration, (i + 1) * chunk_len + overlap_sec)
+            tasks.append(
+                (str(video_path), fps, start, end, threshold, min_scene_len)
+            )
+
+        ranges: List[Tuple[float, float]] = []
+        with ProcessPoolExecutor(max_workers=parallel_chunks) as pool:
+            futures = [pool.submit(_detect_scenes_in_range, *task) for task in tasks]
+            for fut in as_completed(futures):
+                ranges.extend(fut.result())
+
+        merged = _merge_scene_ranges(ranges)
+        scene_list = []
+        for start_sec, end_sec in merged:
+            scene_list.append(
+                (
+                    FrameTimecode(timecode=start_sec, fps=fps),
+                    FrameTimecode(timecode=end_sec, fps=fps),
+                )
+            )
+        return scene_list
+
     def process_movie(self) -> Dict[str, Any]:
         if not self.movie_video or not self.movie_video.exists():
             raise FileNotFoundError(f"No movie video in {self.movie_dir}")
@@ -108,19 +223,31 @@ class ExtractService(BaseService):
         min_scene_len = int(sd.get("min_scene_len", 15))
         clip_length = float(vc.get("clip_length_sec", 5))
 
-        crop_box = detect_crop(
-            str(self.movie_video),
-            sample_seconds=int(cd.get("sample_seconds", 30)),
-            random_seed=int(cd.get("random_seed", 42)),
-        ) or ""
+        s1_cfg = self.config.get("pipeline", {}).get("s1", {})
+        parallel_chunks = int(s1_cfg.get("parallel_scene_chunks", 0) or 0)
 
-        video = open_video(str(self.movie_video))
-        scene_manager = SceneManager()
-        scene_manager.add_detector(
-            ContentDetector(threshold=threshold, min_scene_len=min_scene_len)
-        )
-        scene_manager.detect_scenes(video=video, show_progress=False)
-        scene_list = scene_manager.get_scene_list()
+        cap = cv2.VideoCapture(str(self.movie_video))
+        if not cap.isOpened():
+            raise RuntimeError(f"Cannot open video: {self.movie_video}")
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        cap.release()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            crop_future = pool.submit(
+                detect_crop,
+                str(self.movie_video),
+                int(cd.get("sample_seconds", 30)),
+                int(cd.get("random_seed", 42)),
+            )
+            scenes_future = pool.submit(
+                self._detect_scenes,
+                self.movie_video,
+                threshold,
+                min_scene_len,
+                fps,
+            )
+            crop_box = crop_future.result() or ""
+            scene_list = scenes_future.result()
 
         video_id = self.movie_video.stem
         source_name = self.movie_video.name
@@ -132,12 +259,6 @@ class ExtractService(BaseService):
         specs = self._collect_clip_specs(
             scene_list, clip_length, time_offset, max_clips
         )
-
-        cap = cv2.VideoCapture(str(self.movie_video))
-        if not cap.isOpened():
-            raise RuntimeError(f"Cannot open video: {self.movie_video}")
-        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-        cap.release()
 
         crop_parts = None
         if crop_box:
@@ -174,4 +295,5 @@ class ExtractService(BaseService):
             "clips_generated": len(records),
             "clip_length_sec": clip_length,
             "crop_box": crop_box,
+            "parallel_scene_chunks": parallel_chunks,
         }

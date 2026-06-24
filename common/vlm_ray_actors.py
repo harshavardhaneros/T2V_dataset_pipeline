@@ -26,14 +26,14 @@ except ImportError:
 if ray is not None:
 
     @ray.remote(num_gpus=1)
-    class QwenVideoCaptionActor:
-        """One Qwen2.5-VL replica on a single Ray-assigned GPU."""
+    class VideoCaptionActor:
+        """One native video-caption replica on a single Ray-assigned GPU."""
 
         def __init__(self, config: Dict[str, Any]):
             _bootstrap()
-            from common.qwen_video_caption import QwenVideoCaptionWorker
+            from common.qwen_video_caption import VideoCaptionWorker
 
-            self._worker = QwenVideoCaptionWorker(config, device="cuda:0")
+            self._worker = VideoCaptionWorker(config, device="cuda:0")
 
         def caption(self, payload: Dict[str, Any]) -> Dict[str, Any]:
             from common.qwen_video_caption import build_video_caption_prompt
@@ -49,6 +49,8 @@ if ray is not None:
 
         def shutdown(self) -> None:
             self._worker.cleanup()
+
+    QwenVideoCaptionActor = VideoCaptionActor
 
     @ray.remote(num_gpus=1)
     class QwenClassifyActor:
@@ -122,9 +124,9 @@ if ray is not None:
                 ensure_yolo_face_model,
                 warm_actor_tagger,
             )
-            from common.paths import yolo_face_model_path
+            from common.paths import master_pipeline_root, yolo_face_model_path
 
-            init_master(master_cfg["root"])
+            init_master(master_pipeline_root(config))
             ensure_yolo_face_model(yolo_face_model_path(config))
             self.config = config
             self.master_cfg = master_cfg
@@ -275,6 +277,7 @@ if ray is not None:
             }
 
 else:
+    VideoCaptionActor = None  # type: ignore
     QwenVideoCaptionActor = None  # type: ignore
     QwenClassifyActor = None  # type: ignore
     GemmaVerifyActor = None  # type: ignore

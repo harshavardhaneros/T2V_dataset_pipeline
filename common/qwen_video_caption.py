@@ -1,8 +1,9 @@
-"""Qwen2.5-VL native video clip captioning (MP4 in → caption out)."""
+"""Native MP4 clip captioning (Qwen-VL, Qwen3.5, Gemma4 dense)."""
 
 from __future__ import annotations
 
 import gc
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -13,7 +14,7 @@ from common.gemma_caption import (
     get_caption_system_prompt,
 )
 from common.gpu_info import log_service_gpus, resolve_gpu_ids
-from common.paths import qwen_video_model_path
+from common.paths import video_caption_model_path
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def ensure_clip_mp4(
     clips_dir: Path,
     config: Dict[str, Any],
 ) -> Optional[Path]:
-    """Export a per-clip MP4 if missing (used as Qwen video input)."""
+    """Export a per-clip MP4 if missing (used as video caption input)."""
     clips_dir.mkdir(parents=True, exist_ok=True)
     out = clips_dir / f"{record['clip_id']}.mp4"
     if out.exists() and out.stat().st_size > 0:
@@ -50,20 +51,37 @@ def build_video_caption_prompt(rec: Dict[str, Any], config: Dict[str, Any]) -> s
     return f"{get_caption_system_prompt(config)}\n\n{user}"
 
 
-class QwenVideoCaptionWorker:
-    """Single-GPU Qwen2.5-VL video captioner (used standalone or in Ray actors)."""
+def _read_model_type(model_path: Path) -> str:
+    cfg_path = model_path / "config.json"
+    if not cfg_path.exists():
+        return ""
+    with cfg_path.open(encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    return str(cfg.get("model_type", "")).lower()
+
+
+class VideoCaptionWorker:
+    """Single-GPU native video clip captioner (Qwen-VL / Qwen3.5 / Gemma4)."""
 
     def __init__(self, config: Dict[str, Any], device: str = "cuda:0"):
         self._config = config
+        vc = config.get("models", {}).get("video_caption", {})
         qc = config.get("models", {}).get("qwen_video_caption", {})
         pcfg = config.get("pipeline", {}).get("captioner", {})
-        self.model_path = str(qwen_video_model_path(config))
+        self.model_path = str(video_caption_model_path(config))
         self.device = device
-        self.fps = float(qc.get("video_fps", pcfg.get("video_fps", 1.0)))
-        self.max_pixels = int(qc.get("max_pixels", pcfg.get("max_pixels", 360 * 420)))
-        self.max_new_tokens = int(qc.get("max_tokens", pcfg.get("max_tokens", 800)))
+        self.fps = float(
+            vc.get("video_fps", qc.get("video_fps", pcfg.get("video_fps", 1.0)))
+        )
+        self.max_pixels = int(
+            vc.get("max_pixels", qc.get("max_pixels", pcfg.get("max_pixels", 360 * 420)))
+        )
+        self.max_new_tokens = int(
+            vc.get("max_tokens", qc.get("max_tokens", pcfg.get("max_tokens", 800)))
+        )
         self._model = None
         self._processor = None
+        self._backend_kind = ""
 
     def load(self) -> None:
         if self._model is not None:
@@ -71,17 +89,46 @@ class QwenVideoCaptionWorker:
         model_dir = Path(self.model_path)
         if not (model_dir / "config.json").exists():
             raise FileNotFoundError(
-                f"Qwen video model not found: {model_dir}\n"
-                "Run: bash scripts/download_qwen_vl_7b.sh"
+                f"Video caption model not found: {model_dir}\n"
+                "Run: bash scripts/download_caption_models.sh gemma4_dense qwen3.5"
             )
 
         import torch
-        from transformers import AutoModelForImageTextToText, AutoProcessor
 
         from common.attn_backend import resolve_attn_implementation
 
+        model_type = _read_model_type(model_dir)
         attn_impl = resolve_attn_implementation()
 
+        if model_type == "gemma4":
+            from transformers import AutoModelForMultimodalLM, AutoProcessor
+
+            self._backend_kind = "gemma4"
+            self._processor = AutoProcessor.from_pretrained(self.model_path)
+            self._model = AutoModelForMultimodalLM.from_pretrained(
+                self.model_path,
+                dtype=torch.bfloat16,
+                device_map=self.device,
+                attn_implementation=attn_impl,
+            ).eval()
+            return
+
+        if model_type.startswith("qwen3_5"):
+            from transformers import AutoProcessor, Qwen3_5ForConditionalGeneration
+
+            self._backend_kind = "qwen35"
+            self._processor = AutoProcessor.from_pretrained(self.model_path)
+            self._model = Qwen3_5ForConditionalGeneration.from_pretrained(
+                self.model_path,
+                dtype=torch.bfloat16,
+                device_map=self.device,
+                attn_implementation=attn_impl,
+            ).eval()
+            return
+
+        from transformers import AutoModelForImageTextToText, AutoProcessor
+
+        self._backend_kind = "qwen_vl"
         self._processor = AutoProcessor.from_pretrained(self.model_path)
         self._model = AutoModelForImageTextToText.from_pretrained(
             self.model_path,
@@ -91,9 +138,84 @@ class QwenVideoCaptionWorker:
         ).eval()
 
     def caption_video(self, clip_path: Path, prompt: str) -> str:
+        self.load()
+        if self._backend_kind == "gemma4":
+            return self._caption_gemma4(clip_path, prompt)
+        if self._backend_kind == "qwen35":
+            return self._caption_qwen35(clip_path, prompt)
+        return self._caption_qwen_family(clip_path, prompt)
+
+    def _caption_qwen35(self, clip_path: Path, prompt: str) -> str:
+        import torch
+
+        video_path = str(clip_path.resolve())
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "video", "video": video_path, "fps": self.fps},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        inputs = self._processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+            fps=self.fps,
+        ).to(self._model.device)
+        input_len = inputs["input_ids"].shape[-1]
+
+        with torch.no_grad():
+            outputs = self._model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        return self._processor.decode(
+            outputs[0][input_len:], skip_special_tokens=True
+        ).strip()
+
+    def _caption_gemma4(self, clip_path: Path, prompt: str) -> str:
+        import torch
+
+        video_path = str(clip_path.resolve())
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "video", "video": video_path},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        inputs = self._processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+            add_generation_prompt=True,
+        ).to(self._model.device)
+        input_len = inputs["input_ids"].shape[-1]
+
+        with torch.no_grad():
+            outputs = self._model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        response = self._processor.decode(
+            outputs[0][input_len:], skip_special_tokens=True
+        )
+        return response.strip()
+
+    def _caption_qwen_family(self, clip_path: Path, prompt: str) -> str:
         from qwen_vl_utils import process_vision_info
 
-        self.load()
+        import torch
+
         video_uri = f"file://{clip_path.resolve()}"
         messages = [
             {
@@ -121,11 +243,8 @@ class QwenVideoCaptionWorker:
             videos=video_inputs,
             padding=True,
             return_tensors="pt",
-            fps=self.fps,
-            **video_kwargs,
+            **{k: v for k, v in video_kwargs.items() if k != "fps"},
         ).to(self._model.device)
-
-        import torch
 
         with torch.no_grad():
             gen_ids = self._model.generate(
@@ -148,25 +267,34 @@ class QwenVideoCaptionWorker:
             torch.cuda.empty_cache()
 
 
-class QwenVideoCaptionService:
-    """Qwen2.5-VL video captioning — single GPU or Ray multi-GPU pool."""
+class QwenVideoCaptionWorker(VideoCaptionWorker):
+    """Back-compat alias."""
 
-    _shared: Optional["QwenVideoCaptionService"] = None
+
+class VideoCaptionService:
+    """Native MP4 video captioning — single GPU or Ray multi-GPU pool."""
+
+    _shared: Optional["VideoCaptionService"] = None
 
     def __init__(self, config: Dict[str, Any]):
         self._config = config
+        vc = config.get("models", {}).get("video_caption", {})
         qc = config.get("models", {}).get("qwen_video_caption", {})
         pcfg = config.get("pipeline", {}).get("captioner", {})
-        self.model_path = str(qwen_video_model_path(config))
+        self.model_path = str(video_caption_model_path(config))
         self.gpu_ids = resolve_gpu_ids(
-            [int(g) for g in qc.get("gpu_ids", pcfg.get("gpu_ids", [0]))]
+            [int(g) for g in vc.get("gpu_ids", qc.get("gpu_ids", pcfg.get("gpu_ids", [0])))]
         )
-        self.fps = float(qc.get("video_fps", pcfg.get("video_fps", 1.0)))
-        self.max_new_tokens = int(qc.get("max_tokens", pcfg.get("max_tokens", 800)))
-        self._worker: Optional[QwenVideoCaptionWorker] = None
+        self.fps = float(
+            vc.get("video_fps", qc.get("video_fps", pcfg.get("video_fps", 1.0)))
+        )
+        self.max_new_tokens = int(
+            vc.get("max_tokens", qc.get("max_tokens", pcfg.get("max_tokens", 800)))
+        )
+        self._worker: Optional[VideoCaptionWorker] = None
 
     @classmethod
-    def acquire(cls, config: Dict[str, Any]) -> "QwenVideoCaptionService":
+    def acquire(cls, config: Dict[str, Any]) -> "VideoCaptionService":
         if cls._shared is None:
             cls._shared = cls(config)
         return cls._shared
@@ -190,7 +318,7 @@ class QwenVideoCaptionService:
 
         log_service_gpus(
             "s8",
-            f"Qwen2.5-VL video caption @ {self.fps} fps",
+            f"Native MP4 video caption @ {self.fps} fps",
             self.model_path,
             self.gpu_ids,
             extra="Ray multi-GPU" if self._use_ray_gpus() else "single GPU",
@@ -205,9 +333,7 @@ class QwenVideoCaptionService:
     ) -> List[str]:
         if self._worker is None:
             gpu = self.gpu_ids[0] if self.gpu_ids else 0
-            self._worker = QwenVideoCaptionWorker(
-                self._config, device=f"cuda:{gpu}"
-            )
+            self._worker = VideoCaptionWorker(self._config, device=f"cuda:{gpu}")
 
         results: List[str] = []
         for rec, clip_path in items:
@@ -216,16 +342,18 @@ class QwenVideoCaptionService:
                 raw = self._worker.caption_video(clip_path, prompt)
                 results.append(raw)
             except Exception as exc:
-                logger.warning("Video caption failed for %s: %s", rec.get("clip_id"), exc)
+                logger.warning(
+                    "Video caption failed for %s: %s", rec.get("clip_id"), exc
+                )
                 results.append("")
         return results
 
     def _caption_records_ray(self, items: List[Tuple[Dict[str, Any], Path]]) -> List[str]:
         from common.gpu_actor_pool import gpu_actor_count
         from common.ray_pool import init_ray
-        from common.vlm_ray_actors import QwenVideoCaptionActor
+        from common.vlm_ray_actors import VideoCaptionActor
 
-        if QwenVideoCaptionActor is None or not init_ray(self._config):
+        if VideoCaptionActor is None or not init_ray(self._config):
             logger.warning("Ray GPU caption unavailable; falling back to single GPU")
             return self._caption_records_single(items)
 
@@ -239,10 +367,8 @@ class QwenVideoCaptionService:
         ]
         n_actors = gpu_actor_count(self._config, self.gpu_ids)
         import ray
-        from common.ray_pool import init_ray as _init
 
-        _init(self._config)
-        actors = [QwenVideoCaptionActor.remote(self._config) for _ in range(n_actors)]
+        actors = [VideoCaptionActor.remote(self._config) for _ in range(n_actors)]
         futures = [
             actors[i % n_actors].caption.remote(payload)
             for i, payload in enumerate(payloads)
@@ -264,3 +390,7 @@ class QwenVideoCaptionService:
             self._worker.cleanup()
             self._worker = None
         gc.collect()
+
+
+class QwenVideoCaptionService(VideoCaptionService):
+    """Back-compat alias."""

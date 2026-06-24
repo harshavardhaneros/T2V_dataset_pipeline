@@ -24,6 +24,10 @@ class WatermarkService(BaseService):
         text_types: Dict[str, int] = {}
         updated = 0
 
+        s4_cfg = self.config.get("pipeline", {}).get("s4", {})
+        drop_text = bool(s4_cfg.get("drop_text_clips", False))
+        dropped = 0
+
         if to_run:
             detected = detect_text_clips_vllm(
                 self.config,
@@ -39,6 +43,13 @@ class WatermarkService(BaseService):
                     "text_overlay",
                     {"present": False, "text_type": "none", "confidence": 0.0},
                 )
+                # Drop clips that contain on-screen text: reject so s5-s12 skip
+                # them and they never enter the dataset.
+                if drop_text and rec["has_text"]:
+                    rec["keep"] = False
+                    rec["reject"] = True
+                    rec["reject_reason"] = "has_text"
+                    dropped += 1
                 MetadataManager.mark_done(rec, self.service_id)
                 updated += 1
 
@@ -52,11 +63,12 @@ class WatermarkService(BaseService):
 
         self.metadata.write_all(records)
 
-        s4_cfg = self.config.get("pipeline", {}).get("s4", {})
         summary = {
             "clips_updated": updated,
             "text_present": text_present,
             "text_absent": text_absent,
+            "text_dropped": dropped,
+            "drop_text_clips": drop_text,
             "text_types": text_types,
             "model": s4_cfg.get("model_path") or "gemma-4-31b-it",
             "backend": "vllm",

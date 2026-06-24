@@ -45,6 +45,9 @@ gate:
   discard_below: 0.10
   review_below: 0.18
 
+caption_verify:
+  min_score: 4   # VCInspector 1–5 scale; >=4 considered accurate
+
 watermark:
   sample_clips: 5
   corner_threshold: 0.6

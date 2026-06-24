@@ -16,7 +16,7 @@ from common.gpu_actor_pool import ray_worker_count
 from common.gpu_info import log_service_gpus
 from common.master_bridge import init_master, tag_actor_frames
 from common.metadata_manager import MetadataManager
-from common.paths import models_root, yolo_face_model_path
+from common.paths import master_pipeline_root, models_root, yolo_face_model_path
 from common.ray_pool import init_ray, parallel_map, ray_settings, shutdown_ray
 
 logger = logging.getLogger(__name__)
@@ -102,11 +102,11 @@ class ActorTaggingService(BaseService):
         if not master_cfg.get("root"):
             raise ValueError("pipeline.yaml: master_pipeline.root is required for s7")
 
-        init_master(master_cfg["root"])
+        init_master(master_pipeline_root(self.config))
         log_service_gpus(
             "s7",
             "Face — YOLOv12n-face + InsightFace (3 frames/clip)",
-            "Master_Pipeline_t2i_dataset/actor_tagger.py",
+            str(master_pipeline_root(self.config) / "actor_tagger.py"),
             [int(master_cfg.get("actor_tag_gpu_id", 0))],
             extra="Ray multi-GPU" if self._use_ray_tag() else "",
         )

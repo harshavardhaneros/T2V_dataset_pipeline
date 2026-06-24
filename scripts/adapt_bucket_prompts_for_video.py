@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = Path("/mnt/data0/harsha/new_dataset_pipeline/Master_Pipeline_t2i_dataset/prompts")
+SRC = ROOT / "master" / "prompts_legacy"
 DST = ROOT / "prompts"
 
 VIDEO_PROSE_RULES = """

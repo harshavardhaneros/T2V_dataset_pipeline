@@ -1,0 +1,51 @@
+# Quick s8 native-MP4 caption test (3 clips). Switch caption_model below.
+pipeline_root: /mnt/data0/harsha/new_dataset_pipeline/Indic_video_pipeline
+outputs_root: /mnt/data0/harsha/new_dataset_pipeline/v3_outputs
+models_root: /mnt/data0/harsha/new_dataset_pipeline/models
+
+output_layout: per_movie
+isolate_run_outputs: true
+
+workspaces_dir: workspaces
+logs_dir: logs
+reports_dir: reports
+
+prompt_pack:
+  zip_path: /mnt/data0/harsha/new_dataset_pipeline/zip_12buckets.zip
+
+export:
+  include_verdicts: [FINAL, REVIEW]
+  export_clips: true
+  remove_watermark: false
+
+ray:
+  enabled: false
+
+models_overrides:
+  video_caption:
+    gpu_ids: [0]
+    batch_size: 1
+    max_tokens: 512
+    video_fps: 1.0
+    max_pixels: 201600
+
+captioner:
+  caption_model: gemma4_dense   # gemma4_dense | qwen3.5
+  backend: video
+  gpu_ids: [0]
+  batch_size: 1
+  max_tokens: 512
+  video_fps: 1.0
+  max_pixels: 201600
+  caption_all_clips: true
+  caption_format: prose
+  prompt_version: qwen_video_eros_v1
+
+services_order:
+  - s8
+
+movie_registry: data/movie_registry.csv
+
+master_pipeline:
+  root: master
+  prompts_dir: prompts

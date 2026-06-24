@@ -92,6 +92,7 @@ class DedupService(BaseService):
         n_workers: int,
     ) -> Dict[str, Dict[str, Any]]:
         from common.vlm_ray_actors import MotionScoreActor
+        from common.gpu_actor_pool import gpu_actor_options
 
         if MotionScoreActor is None or not init_ray(self.config):
             return {}
@@ -99,7 +100,8 @@ class DedupService(BaseService):
         import ray
 
         n_actors = max(1, min(n_workers, len(jobs)))
-        actors = [MotionScoreActor.remote() for _ in range(n_actors)]
+        opts = gpu_actor_options(self.config)
+        actors = [MotionScoreActor.options(**opts).remote() for _ in range(n_actors)]
         futures = [
             actors[i % n_actors].score.remote(job) for i, job in enumerate(jobs)
         ]
@@ -119,6 +121,7 @@ class DedupService(BaseService):
         n_workers: int,
     ) -> List[Dict[str, Any]]:
         from common.vlm_ray_actors import DoverScoreActor
+        from common.gpu_actor_pool import gpu_actor_options
 
         if DoverScoreActor is None or not init_ray(self.config):
             return []
@@ -126,7 +129,8 @@ class DedupService(BaseService):
         import ray
 
         n_actors = max(1, min(n_workers, len(jobs)))
-        actors = [DoverScoreActor.remote(self.config) for _ in range(n_actors)]
+        opts = gpu_actor_options(self.config)
+        actors = [DoverScoreActor.options(**opts).remote(self.config) for _ in range(n_actors)]
         futures = [
             actors[i % n_actors].score.remote(job) for i, job in enumerate(jobs)
         ]

@@ -61,10 +61,13 @@ class VerifyService(BaseService):
 
         import ray
 
+        from common.gpu_actor_pool import gpu_actor_options
+
         mp = self.config["pipeline"]["master_pipeline"]
         gpu_ids = [int(g) for g in mp.get("verify_gpu_ids", [0])]
         n_actors = ray_worker_count(self.config, "verify_workers", gpu_ids)
-        actors = [GemmaVerifyActor.remote(self.config) for _ in range(n_actors)]
+        opts = gpu_actor_options(self.config)
+        actors = [GemmaVerifyActor.options(**opts).remote(self.config) for _ in range(n_actors)]
         payloads = [
             {
                 "record": rec,

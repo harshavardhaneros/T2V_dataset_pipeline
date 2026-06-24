@@ -7,6 +7,10 @@ import argparse
 import sys
 from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 from common.base_service import ensure_path_on_syspath
 from common.paths import workspaces_dir
 from common.runtime_tracker import rebuild_runtime_artifacts

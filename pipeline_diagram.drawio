@@ -1,101 +1,123 @@
 <mxfile host="65bd71144e">
-    <diagram id="indic-pipeline-v3" name="Indic Video Pipeline v3 (vLLM + Ray)">
-        <mxGraphModel dx="1420" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1800" math="0" shadow="0">
+    <diagram id="indic-pipeline-v3-vllm" name="Indic Video Pipeline v3 (vLLM + Ray)">
+        <mxGraphModel dx="1420" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1900" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                
-                <!-- TITLE HEADER -->
-                <mxCell id="title" value="INDIC VIDEO DATASET PIPELINE v3 — HIGH-THROUGHPUT ARCHITECTURE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
+
+                <mxCell id="title" value="INDIC VIDEO DATASET PIPELINE v3 — vLLM + Ray Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#111111;" vertex="1" parent="1">
                     <mxGeometry x="40" y="20" width="1350" height="40" as="geometry"/>
                 </mxCell>
-                
-                <!-- v3 HARDWARE INFRASTRUCTURE -->
-                <mxCell id="env_box" value="H200 High-Performance Compute Mesh (8× GPU)" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#F0F7FF;strokeColor=#0052A3;" vertex="1" parent="1">
-                    <mxGeometry x="1080" y="100" width="360" height="420" as="geometry"/>
-                </mxCell>
-                <mxCell id="vllm_cluster" value="&lt;b&gt;vLLM Batch Engine (Data-Parallel Replicas)&lt;/b&gt;&lt;br/&gt;• TP Size: 1 per GPU | Replicas: 8 (8× H200)&lt;br/&gt;• Services: s5 (Classify), s8 (Caption)&lt;br/&gt;• Models: Qwen2.5-VL-7B / Gemma-4-31B-IT" style="text;html=1;strokeColor=#B33A3A;fillColor=#FFD2D2;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=12;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
-                    <mxGeometry x="20" y="45" width="320" height="75" as="geometry"/>
-                </mxCell>
-                <mxCell id="ray_cluster" value="&lt;b&gt;Ray Distributed Worker Mesh&lt;/b&gt;&lt;br/&gt;• Parallel Workers: 8 GPU Actors / 32 CPU Cores&lt;br/&gt;• Services: s6 (Verify), s7 (Actor), s9 (Quality)&lt;br/&gt;• Logic: Asynchronous task scheduling per clip" style="text;html=1;strokeColor=#228B22;fillColor=#D2F8D2;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=12;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
-                    <mxGeometry x="20" y="135" width="320" height="75" as="geometry"/>
-                </mxCell>
-                <mxCell id="cpu_heavy" value="&lt;b&gt;Legacy CPU / IO Workers&lt;/b&gt;&lt;br/&gt;• s1-s4 &amp; s10-s12: Single-threaded orchestrator&lt;br/&gt;• Mode: FFmpeg segmentation &amp; BK-Tree Dedup" style="text;html=1;strokeColor=#666666;fillColor=#EAEAEA;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=12;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
-                    <mxGeometry x="20" y="225" width="320" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="two_phase" value="&lt;b&gt;Two-Phase Execution Strategy&lt;/b&gt;&lt;br/&gt;Necessary for v3-2GPU (logical cuda:0,1)&lt;br/&gt;Phase 1: s1 → s7 (Ray Mesh Load)&lt;br/&gt;Phase 2: s8 → s12 (vLLM Caption Load)&lt;br/&gt;Prevents CUDA process context memory leaks." style="text;html=1;strokeColor=#0052A3;fillColor=#DAE8FC;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
-                    <mxGeometry x="20" y="300" width="320" height="100" as="geometry"/>
+                <mxCell id="subtitle" value="Config: pipeline_v3_vllm_2gpu.yaml (2× GPU) · pipeline_v3_vllm_8gpu.yaml (8× GPU) · run: scripts/run_v3_vllm_2gpu.sh" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#555555;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="55" width="1350" height="25" as="geometry"/>
                 </mxCell>
 
-                <!-- MAIN WORKSPACE SWIMLANE -->
-                <mxCell id="orchestrator" value="run_pipeline.py — v3 Distributed Orchestrator" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#FFFAD2;strokeColor=#D6B656;startSize=30;" vertex="1" parent="1">
-                    <mxGeometry x="40" y="100" width="660" height="1580" as="geometry"/>
+                <mxCell id="env_box" value="Compute Layout (v3 vLLM)" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#F0F7FF;strokeColor=#0052A3;" vertex="1" parent="1">
+                    <mxGeometry x="1080" y="100" width="360" height="480" as="geometry"/>
+                </mxCell>
+                <mxCell id="vllm_cluster" value="&lt;b&gt;vLLM Batch Engine (Data-Parallel, TP=1/GPU)&lt;/b&gt;&lt;br/&gt;• Services: s4 (Text detect), s5 (Classify), s8 (Caption)&lt;br/&gt;• s4/s8: Gemma-4-31B-IT (vLLM 0.19+)&lt;br/&gt;• s5: Qwen2.5-VL-7B-Instruct&lt;br/&gt;• s8 caption models: gemma4 | qwen2.5 | qwen3 | gemma3&lt;br/&gt;• 2-GPU: 2 replicas · 8-GPU: 8 replicas" style="text;html=1;strokeColor=#B33A3A;fillColor=#FFD2D2;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
+                    <mxGeometry x="20" y="45" width="320" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="ray_cluster" value="&lt;b&gt;Ray Distributed Workers&lt;/b&gt;&lt;br/&gt;• 2-GPU cfg: 2 GPU actors, 16 CPUs&lt;br/&gt;• 8-GPU cfg: 8 GPU actors, 32 CPUs&lt;br/&gt;• Services: s1 frames, s2 export/motion/DOVER&lt;br/&gt;• s6 verify, s7 actor tag, s9 clip score&lt;br/&gt;• Chunked async scheduling per clip batch" style="text;html=1;strokeColor=#228B22;fillColor=#D2F8D2;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
+                    <mxGeometry x="20" y="170" width="320" height="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="cpu_heavy" value="&lt;b&gt;CPU / IO Orchestrator Steps&lt;/b&gt;&lt;br/&gt;• s1 scene detect + virtual clips + crop + phash&lt;br/&gt;• s3 band-removal flag (lazy, no re-encode)&lt;br/&gt;• s10 gate · s11 export · s12 runtime report" style="text;html=1;strokeColor=#666666;fillColor=#EAEAEA;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
+                    <mxGeometry x="20" y="280" width="320" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="two_phase" value="&lt;b&gt;Two-Phase Execution (required)&lt;/b&gt;&lt;br/&gt;Phase 1: s1 → s7 (Ray + first vLLM load for s4/s5)&lt;br/&gt;Phase 2: s8 → s12 (second vLLM load for caption)&lt;br/&gt;Separate processes avoid Ray + vLLM CUDA context leaks.&lt;br/&gt;Script: run_v3_vllm_2gpu.sh runs both phases." style="text;html=1;strokeColor=#0052A3;fillColor=#DAE8FC;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;html=1;spacingLeft=10;spacingTop=6;" vertex="1" parent="env_box">
+                    <mxGeometry x="20" y="365" width="320" height="100" as="geometry"/>
                 </mxCell>
 
-                <!-- STAGES -->
-                <mxCell id="s1" value="&lt;b&gt;s1: Extract Service&lt;/b&gt;&lt;br/&gt;• Engine: FFmpeg Stream Segmentation&lt;br/&gt;• Parallelism: Ray Parallel Frame Extraction (16 workers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="50" width="560" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="s2" value="&lt;b&gt;s2: Dedup Service&lt;/b&gt;&lt;br/&gt;• Engine: pHash BK-Tree Matching&lt;br/&gt;• Parallelism: Ray Score-only Parallel Export (8 workers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="150" width="560" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="s3" value="&lt;b&gt;s3: Band Removal&lt;/b&gt; | &lt;b&gt;s4: Watermark&lt;/b&gt;&lt;br/&gt;• Engine: Custom Pixel Matrix Structural Trimming&lt;br/&gt;• Action: Spatial crop box computation per record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="250" width="560" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="s5" value="&lt;b&gt;s5: Classify Service (vLLM Engine)&lt;/b&gt;&lt;br/&gt;• Model: Qwen2.5-VL-7B-Instruct&lt;br/&gt;• Throughput: Batched asynchronous inference (Batch size 16-24)&lt;br/&gt;• Hardware: Replicated across 8 GPUs (TP=1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="350" width="560" height="90" as="geometry"/>
-                </mxCell>
-                <mxCell id="s6" value="&lt;b&gt;s6: Verify Service (Ray Parallel)&lt;/b&gt;&lt;br/&gt;• Model: Gemma-3-4B-IT&lt;br/&gt;• Mode: Distributed Gemma-workers (8 Workers across cluster)&lt;br/&gt;• Logic: Cross-bucket VLM confirmation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2F8D2;strokeColor=#228B22;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="460" width="560" height="90" as="geometry"/>
-                </mxCell>
-                <mxCell id="s7" value="&lt;b&gt;s7: Actor Tagging (Ray Parallel)&lt;/b&gt;&lt;br/&gt;• Model: YOLOv12n-face + InsightFace-buffalo_l&lt;br/&gt;• Parallelism: 8 Concurrent Actor Tagging Workers&lt;br/&gt;• Database: 108 Cinematic Pre-baked Embeddings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2E2F8;strokeColor=#3366CC;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="570" width="560" height="90" as="geometry"/>
-                </mxCell>
-                <mxCell id="phase_boundary" value="&lt;b&gt;[ PHASE BOUNDARY: v3-2GPU CONTEXT RESTART POINT ]&lt;/b&gt;" style="text;html=1;strokeColor=#FF0000;fillColor=#FFE6E6;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="680" width="560" height="30" as="geometry"/>
-                </mxCell>
-                <mxCell id="s8" value="&lt;b&gt;s8: Caption Service (vLLM High-Throughput)&lt;/b&gt;&lt;br/&gt;• Model: Gemma-4-31B-IT (0.19+ Engine) / Qwen2.5-VL-7B&lt;br/&gt;• Capability: Multi-frame Video Input | Prose Format Output&lt;br/&gt;• Strategy: 8× Data-Parallel Replicas | Async Batching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="730" width="560" height="100" as="geometry"/>
-                </mxCell>
-                <mxCell id="s9" value="&lt;b&gt;s9: Quality Scoring (Ray Parallel)&lt;/b&gt;&lt;br/&gt;• Model: CLIP (ViT-B-32) + GroundingDINO + DOVER (Motion/Aesthetic)&lt;br/&gt;• Workers: 8 Distributed GPU Scorers | 8 Motion Scrapers&lt;br/&gt;• Action: Compute Aesthetic/Technical scores per clip" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2F8D2;strokeColor=#228B22;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="850" width="560" height="100" as="geometry"/>
-                </mxCell>
-                <mxCell id="s10" value="&lt;b&gt;s10: Gate Service (Filtering)&lt;/b&gt;&lt;br/&gt;• Action: Eviction of records below aesthetic threshold&lt;br/&gt;• Source: pipeline_v3_vllm.yaml → thresholds.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="970" width="560" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="s11" value="&lt;b&gt;s11: Export Service&lt;/b&gt;&lt;br/&gt;• Action: Final high-aesthetic dataset packaging&lt;br/&gt;• Output: CSV + JSONL master rows (v3_outputs/&lt;video_id&gt;/)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="1070" width="560" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="s12" value="&lt;b&gt;s12: Report Service&lt;/b&gt;&lt;br/&gt;• Action: v3 Runtime Performance Aggregation&lt;br/&gt;• Output: pipeline_outputs/reports/runtime_summary.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
-                    <mxGeometry x="50" y="1170" width="560" height="80" as="geometry"/>
+                <mxCell id="orchestrator" value="run_pipeline.py — v3 vLLM Orchestrator" style="swimlane;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#FFFAD2;strokeColor=#D6B656;startSize=30;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="100" width="660" height="1680" as="geometry"/>
                 </mxCell>
 
-                <!-- DATA SYNC -->
-                <mxCell id="metadata_hub" value="&lt;b&gt;v3 Master Metadata Synchronizer&lt;/b&gt;&lt;br/&gt;v3_outputs/workspaces/&lt;video_id&gt;/metadata.jsonl&lt;br/&gt;[Atomic Append + Thread-Safe Advisory Locking]" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFE5CC;strokeColor=#FF9900;fontSize=12;fontStyle=1;align=center;" vertex="1" parent="1">
-                    <mxGeometry x="740" y="450" width="310" height="130" as="geometry"/>
+                <mxCell id="s1" value="&lt;b&gt;s1: Extract&lt;/b&gt; (s1_extract)&lt;br/&gt;• PySceneDetect scene cuts → virtual 5s clips&lt;br/&gt;• FFmpeg crop detect · perceptual hash (phash)&lt;br/&gt;• Ray: parallel frame extract (8 workers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="50" width="560" height="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2" value="&lt;b&gt;s2: Filter / Score&lt;/b&gt; (s2_filter) — mode: score_only&lt;br/&gt;• BK-tree phash dedup · UniMatch motion · DOVER aesthetic/technical&lt;br/&gt;• Ray: parallel clip export, motion workers, DOVER workers&lt;br/&gt;• Writes clips/*.mp4 + motion/DOVER scores to metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="155" width="560" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="&lt;b&gt;s3: Band Removal&lt;/b&gt; (s3_band_removal)&lt;br/&gt;• Lazy flag: band_removed = has crop_box&lt;br/&gt;• No re-encode; crop applied at export time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="265" width="560" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4" value="&lt;b&gt;s4: Text Detect&lt;/b&gt; (s4_text_detect) — vLLM&lt;br/&gt;• Model: Gemma-4-31B-IT · middle frame per clip&lt;br/&gt;• Output: has_text, text_overlay (type, confidence, summary)&lt;br/&gt;• No watermark detection (removed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="355" width="560" height="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5" value="&lt;b&gt;s5: Classify&lt;/b&gt; (s5_classify) — vLLM&lt;br/&gt;• Model: Qwen2.5-VL-7B-Instruct · 1 vote frame&lt;br/&gt;• 12-bucket taxonomy (zip_12buckets prompts)&lt;br/&gt;• Batched inference · data-parallel replicas (TP=1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="460" width="560" height="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6" value="&lt;b&gt;s6: Verify&lt;/b&gt; (s6_verify) — Ray parallel&lt;br/&gt;• Model: Gemma-3-4B-IT · cross-bucket VLM confirmation&lt;br/&gt;• 2 verify workers (2-GPU cfg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2F8D2;strokeColor=#228B22;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="565" width="560" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="s7" value="&lt;b&gt;s7: Actor Tagging&lt;/b&gt; (s7_actor_tagging) — Ray parallel&lt;br/&gt;• YOLOv12n-face + InsightFace buffalo_l embeddings&lt;br/&gt;• Cast filter + similarity threshold per movie config&lt;br/&gt;• 2 actor-tag workers (2-GPU cfg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2E2F8;strokeColor=#3366CC;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="665" width="560" height="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="phase_boundary" value="&lt;b&gt;[ PHASE BOUNDARY — restart process before s8 ]&lt;/b&gt;" style="text;html=1;strokeColor=#FF0000;fillColor=#FFE6E6;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="770" width="560" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="s8" value="&lt;b&gt;s8: Caption&lt;/b&gt; (s8_caption) — vLLM&lt;br/&gt;• Default: Gemma-4-31B-IT · backend: vllm&lt;br/&gt;• Input: 3 JPEG frames/clip (20% / 50% / 80% duration)&lt;br/&gt;• Output: prose captions · multi_frame=true&lt;br/&gt;• Alt models: qwen2.5, qwen3, gemma3 (caption_model key)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="815" width="560" height="105" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9" value="&lt;b&gt;s9: Quality Scoring&lt;/b&gt; (s9_quality_scoring) — Ray parallel&lt;br/&gt;• CLIP ViT-B-32 semantic · motion + DOVER (from s2)&lt;br/&gt;• Weighted final_score: clip, dover, motion, bucket, caption&lt;br/&gt;• 2 clip-score workers (2-GPU cfg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2F8D2;strokeColor=#228B22;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="940" width="560" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s10" value="&lt;b&gt;s10: Gate&lt;/b&gt; (s10_gate)&lt;br/&gt;• Threshold filter on final_score → verdict FINAL / REVIEW / REJECT&lt;br/&gt;• Source: configs/thresholds.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="1050" width="560" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11" value="&lt;b&gt;s11: Export&lt;/b&gt; (s11_export)&lt;br/&gt;• Package FINAL/REVIEW clips · captions.jsonl · CSV&lt;br/&gt;• export/clips/ · view_workspace.py HTML hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="1145" width="560" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="s12" value="&lt;b&gt;s12: Report&lt;/b&gt; (s12_report)&lt;br/&gt;• Per-service runtime JSON → reports/runtime_summary.csv&lt;br/&gt;• scripts/view_pipeline_dashboard.py → export/pipeline_dashboard.html" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=12;align=left;spacingLeft=15;html=1;" vertex="1" parent="orchestrator">
+                    <mxGeometry x="50" y="1240" width="560" height="75" as="geometry"/>
                 </mxCell>
 
-                <!-- OUTPUTS -->
-                <mxCell id="outputs_box" value="v3 Target Dataset Production Layout" style="swimlane;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;fillColor=#E1D5E7;strokeColor=#9673A6;startSize=25;" vertex="1" parent="1">
-                    <mxGeometry x="740" y="1070" width="310" height="180" as="geometry"/>
+                <mxCell id="metadata_hub" value="&lt;b&gt;Per-Movie Metadata Hub&lt;/b&gt;&lt;br/&gt;v3_outputs/&amp;lt;video_id&amp;gt;/metadata.jsonl&lt;br/&gt;+ clips/ · frames/ · actor_frames/ · logs/" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFE5CC;strokeColor=#FF9900;fontSize=12;fontStyle=1;align=center;" vertex="1" parent="1">
+                    <mxGeometry x="740" y="480" width="310" height="130" as="geometry"/>
                 </mxCell>
-                <mxCell id="out_meta" value="• metadata.jsonl (Granular state database)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+
+                <mxCell id="outputs_box" value="v3_outputs/&amp;lt;video_id&amp;gt;/ Layout" style="swimlane;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;fillColor=#E1D5E7;strokeColor=#9673A6;startSize=25;" vertex="1" parent="1">
+                    <mxGeometry x="740" y="1145" width="310" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_meta" value="• metadata.jsonl (clip state + all service fields)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
                     <mxGeometry x="15" y="35" width="280" height="25" as="geometry"/>
                 </mxCell>
-                <mxCell id="out_export" value="• export/ (High-aesthetic training rows)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
-                    <mxGeometry x="15" y="65" width="280" height="25" as="geometry"/>
+                <mxCell id="out_clips" value="• clips/ + frames/ (MP4 + 3 JPEGs per clip)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+                    <mxGeometry x="15" y="60" width="280" height="25" as="geometry"/>
                 </mxCell>
-                <mxCell id="out_actor" value="• actor_tags/ (Bounding box track files)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
-                    <mxGeometry x="15" y="95" width="280" height="25" as="geometry"/>
+                <mxCell id="out_export" value="• export/ (captions, CSV, review HTML, dashboard)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+                    <mxGeometry x="15" y="85" width="280" height="25" as="geometry"/>
                 </mxCell>
-                <mxCell id="out_logs" value="• logs/ (v3 profiling &amp; step summaries)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
-                    <mxGeometry x="15" y="125" width="280" height="25" as="geometry"/>
+                <mxCell id="out_actor" value="• actor_tags/ (face match results)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+                    <mxGeometry x="15" y="110" width="280" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_logs" value="• logs/s1…s12/ (per-step runtime JSON)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+                    <mxGeometry x="15" y="135" width="280" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_reports" value="• reports/runtime_summary.csv" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;" vertex="1" parent="outputs_box">
+                    <mxGeometry x="15" y="160" width="280" height="25" as="geometry"/>
                 </mxCell>
 
-                <!-- EDGES -->
+                <mxCell id="legend_box" value="Color Legend" style="swimlane;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;fillColor=#FFFFFF;strokeColor=#999999;startSize=22;" vertex="1" parent="1">
+                    <mxGeometry x="740" y="100" width="310" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg_vllm" value="vLLM GPU batch (s4, s5, s8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD2D2;strokeColor=#B33A3A;fontSize=10;" vertex="1" parent="legend_box">
+                    <mxGeometry x="15" y="30" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg_ray" value="Ray parallel GPU/CPU" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2F8D2;strokeColor=#228B22;fontSize=10;" vertex="1" parent="legend_box">
+                    <mxGeometry x="155" y="30" width="140" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg_cpu" value="CPU / IO orchestrator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#AAAAAA;fontSize=10;" vertex="1" parent="legend_box">
+                    <mxGeometry x="15" y="70" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg_actor" value="Actor / face pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D2E2F8;strokeColor=#3366CC;fontSize=10;" vertex="1" parent="legend_box">
+                    <mxGeometry x="155" y="70" width="140" height="30" as="geometry"/>
+                </mxCell>
+
                 <mxCell id="flow_1_2" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="flow_2_3" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry"/></mxCell>
-                <mxCell id="flow_4_5" edge="1" parent="1" source="s3" target="s5"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow_3_4" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow_4_5" edge="1" parent="1" source="s4" target="s5"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="flow_5_6" edge="1" parent="1" source="s5" target="s6"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="flow_6_7" edge="1" parent="1" source="s6" target="s7"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="flow_7_8" edge="1" parent="1" source="s7" target="s8"><mxGeometry relative="1" as="geometry"/></mxCell>
@@ -104,8 +126,9 @@
                 <mxCell id="flow_10_11" edge="1" parent="1" source="s10" target="s11"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="flow_11_12" edge="1" parent="1" source="s11" target="s12"><mxGeometry relative="1" as="geometry"/></mxCell>
 
-                <mxCell id="meta_sync" edge="1" parent="1" source="s5" target="metadata_hub" style="strokeColor=#FF9900;dashed=1;curved=1;endArrow=classic;startArrow=classic;"><mxGeometry relative="1" as="geometry"/></mxCell>
-                <mxCell id="meta_sync2" edge="1" parent="1" source="s8" target="metadata_hub" style="strokeColor=#FF9900;dashed=1;curved=1;endArrow=classic;startArrow=classic;"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="meta_sync" edge="1" parent="1" source="s4" target="metadata_hub" style="strokeColor=#FF9900;dashed=1;curved=1;endArrow=classic;startArrow=classic;"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="meta_sync2" edge="1" parent="1" source="s5" target="metadata_hub" style="strokeColor=#FF9900;dashed=1;curved=1;endArrow=classic;startArrow=classic;"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="meta_sync3" edge="1" parent="1" source="s8" target="metadata_hub" style="strokeColor=#FF9900;dashed=1;curved=1;endArrow=classic;startArrow=classic;"><mxGeometry relative="1" as="geometry"/></mxCell>
             </root>
         </mxGraphModel>
     </diagram>
